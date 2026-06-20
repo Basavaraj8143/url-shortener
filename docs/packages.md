@@ -1,4 +1,4 @@
-## Day 2 - Package Structure
+## Day 1 - Package Structure
 
 ### Step 1: Create Package Structure
 
@@ -135,3 +135,5 @@ SecurityConfig
 RedisConfig
 ```
 ```
+
+

@@ -1,6 +1,6 @@
 # URL Shortener Project Journal
 
-## Day 1 - Project Initialization
+## Day 0 - Project Initialization
 
 ### Objective
 Set up the Spring Boot project and understand the generated structure.
