@@ -192,3 +192,58 @@ Expiry Links
 Custom Alias
 Analytics API
 ```
+
+---
+
+## Reflection After Completing Phase 2
+
+### What I Actually Learned Today
+
+Learned:
+
+* How `GET /{shortCode}` works as the core feature of a URL shortener
+* How Spring Data JPA creates custom queries from method names like `findByShortCode`
+* How to return redirects using HTTP `302 FOUND` and the `Location` header
+* How to return clean response data using a separate `UrlResponse` DTO
+* How to handle missing data with a custom exception instead of returning `null`
+* How request validation works using `@Valid`, `@NotBlank`, and `@URL`
+
+---
+
+### Spring Concepts Still Used But Not Fully Understood
+
+Need deeper understanding of:
+
+* `ResponseEntity` for controlling response status, headers, and body
+* `@RestControllerAdvice` for global exception handling
+* `MethodArgumentNotValidException` and Spring's validation flow
+* Spring Data JPA derived query methods such as `findByShortCode`
+* HTTP redirect behavior and how clients handle `302 FOUND`
+
+---
+
+### Interview Questions I Can Now Answer
+
+Can now explain:
+
+* What layered architecture means in a Spring Boot project
+* Why DTOs are used instead of exposing entities directly
+* How Spring Data JPA reduces repository boilerplate
+* How to create REST APIs in Spring Boot
+* How a URL shortener redirect works internally
+* How to handle not-found cases in an API
+* What request validation is and why it matters
+* The difference between `200 OK`, `204 No Content`, `302 FOUND`, `400 Bad Request`, and `404 Not Found`
+
+---
+
+### Refactoring Opportunities
+
+Possible improvements:
+
+* Add a unique constraint on `shortCode` to prevent duplicate short URLs
+* Add retry logic if a generated short code already exists
+* Move entity-to-DTO conversion into a mapper if response logic grows
+* Return the full short URL in `ShortenResponse`, not only the `shortCode`
+* Move database credentials out of `application.properties` into environment variables
+* Add service and controller tests before starting more advanced features
