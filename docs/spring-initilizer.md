@@ -18,7 +18,7 @@ Set up the Spring Boot project and understand the generated structure.
 Project Type : Maven
 Language     : Java
 Spring Boot  : Latest Stable Version
-Group        : com.busss
+Group        : com.buss
 Artifact     : url-shortener
 Name         : url-shortener
 Packaging    : Jar
@@ -44,14 +44,14 @@ url-shortener
 ├── src
 │   ├── main
 │   │   ├── java
-│   │   │   └── com.busss.url_shortener
+│   │   │   └── com.buss.url_shortener
 │   │   │       └── UrlShortenerApplication.java
 │   │   │
 │   │   └── resources
 │   │
 │   └── test
 │       └── java
-│           └── com.busss.url_shortener
+│           └── com.buss.url_shortener
 │               └── UrlShortenerApplicationTests.java
 │
 ├── pom.xml
