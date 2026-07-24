@@ -156,6 +156,17 @@ DELETE /api/urls/{id}
 
 Working URL shortener with database persistence.
 
+## Current Status
+
+```text
+[x] POST /api/urls
+[x] GET /{shortCode}
+[x] GET /api/urls
+[x] DELETE /api/urls/{id}
+[x] Basic validation
+[x] Custom not-found handling
+```
+
 ---
 
 # Phase 3 — Production Features (Days 5–7)
