@@ -3,6 +3,7 @@ package com.buss.url_shortener.service;
 import com.buss.url_shortener.dto.ShortenRequest;
 import com.buss.url_shortener.dto.ShortenResponse;
 import com.buss.url_shortener.dto.UrlResponse;
+import com.buss.url_shortener.dto.UrlStatsResponse;
 import com.buss.url_shortener.entity.Url;
 import com.buss.url_shortener.exception.UrlNotFoundException;
 import com.buss.url_shortener.repository.UrlRepository;
@@ -33,6 +34,7 @@ public class UrlService {
         url.setLongUrl(request.getLongUrl());
         url.setShortCode(shortCode);
         url.setCreatedAt(LocalDateTime.now());
+        url.setClickCount(0L);
 
         urlRepository.save(url);
 
@@ -42,6 +44,9 @@ public class UrlService {
     public String getLongUrl(String shortCode) {
         Url url = urlRepository.findByShortCode(shortCode)
                 .orElseThrow(() -> new UrlNotFoundException("Short URL not found"));
+
+        url.setClickCount(getClickCount(url) + 1);
+        urlRepository.save(url);
 
         return url.getLongUrl();
     }
@@ -61,12 +66,27 @@ public class UrlService {
         urlRepository.deleteById(id);
     }
 
+    public UrlStatsResponse getUrlStats(Long id) {
+        Url url = urlRepository.findById(id)
+                .orElseThrow(() -> new UrlNotFoundException("URL not found"));
+
+        return new UrlStatsResponse(
+                getClickCount(url),
+                url.getCreatedAt()
+        );
+    }
+
     private UrlResponse toResponse(Url url) {
         return new UrlResponse(
                 url.getId(),
                 url.getLongUrl(),
                 url.getShortCode(),
-                url.getCreatedAt()
+                url.getCreatedAt(),
+                getClickCount(url)
         );
+    }
+
+    private Long getClickCount(Url url) {
+        return url.getClickCount() == null ? 0L : url.getClickCount();
     }
 }
