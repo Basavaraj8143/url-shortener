@@ -18,6 +18,20 @@ public class GlobalExceptionHandler {
                 .body(Map.of("error", exception.getMessage()));
     }
 
+    @ExceptionHandler(UrlExpiredException.class)
+    public ResponseEntity<Map<String, String>> handleUrlExpiredException(UrlExpiredException exception) {
+        return ResponseEntity
+                .status(HttpStatus.GONE)
+                .body(Map.of("error", exception.getMessage()));
+    }
+
+    @ExceptionHandler(DuplicateAliasException.class)
+    public ResponseEntity<Map<String, String>> handleDuplicateAliasException(DuplicateAliasException exception) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(Map.of("error", exception.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidationException(MethodArgumentNotValidException exception) {
         String message = exception.getBindingResult()

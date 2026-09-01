@@ -9,13 +9,15 @@ public class UrlResponse {
     private String shortCode;
     private LocalDateTime createdAt;
     private Long clickCount;
+    private LocalDateTime expiresAt;
 
-    public UrlResponse(Long id, String longUrl, String shortCode, LocalDateTime createdAt, Long clickCount) {
+    public UrlResponse(Long id, String longUrl, String shortCode, LocalDateTime createdAt, Long clickCount, LocalDateTime expiresAt) {
         this.id = id;
         this.longUrl = longUrl;
         this.shortCode = shortCode;
         this.createdAt = createdAt;
         this.clickCount = clickCount;
+        this.expiresAt = expiresAt;
     }
 
     public Long getId() {
@@ -36,5 +38,9 @@ public class UrlResponse {
 
     public Long getClickCount() {
         return clickCount;
+    }
+
+    public LocalDateTime getExpiresAt() {
+        return expiresAt;
     }
 }

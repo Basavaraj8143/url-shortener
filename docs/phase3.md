@@ -263,16 +263,16 @@ Allowed: a-z, A-Z, 0-9, _, -
 
 ```text
 [x] Add clickCount field
-[ ] Add expiresAt field
+[x] Add expiresAt field
 [x] Set clickCount during URL creation
-[ ] Set default expiry during URL creation
+[x] Set default expiry during URL creation
 [x] Increment clickCount on redirect
-[ ] Block expired redirects
-[ ] Add optional customAlias request field
-[ ] Reject duplicate custom aliases
+[x] Block expired redirects
+[x] Add optional customAlias request field
+[x] Reject duplicate custom aliases
 [x] Add GET /api/urls/{id}/stats
 [x] Add required DTOs
-[ ] Add required exceptions
+[x] Add required exceptions
 [ ] Test all endpoints in Postman
 ```
 
@@ -285,19 +285,23 @@ Completed today:
 ```text
 [x] Click Analytics
 [x] Analytics API
-[ ] Expiry Links
-[ ] Custom Alias
+[x] Expiry Links
+[x] Custom Alias
 ```
 
-Phase 3 is now partially complete.
+Phase 3 implementation is complete.
 
-Remaining work:
+Completed:
 
 * Add expiry support using `expiresAt`
 * Block redirect for expired short URLs
 * Add optional `customAlias`
 * Reject duplicate aliases
 * Add alias validation
+
+Remaining verification:
+
+* Test all endpoints in Postman
 
 ---
 

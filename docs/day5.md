@@ -244,17 +244,17 @@ Completed:
 [x] Analytics API
 ```
 
-Remaining:
+Completed later:
 
 ```text
-[ ] Expiry Links
-[ ] Custom Alias
+[x] Expiry Links
+[x] Custom Alias
 ```
 
 Next Step:
 
-Implement expiry links using:
+Phase 3 is complete. Next roadmap phase:
 
-```java
-expiresAt
+```text
+Phase 4 - Authentication
 ```

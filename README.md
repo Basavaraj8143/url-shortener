@@ -231,6 +231,17 @@ Response:
 
 Feature-rich URL Shortener.
 
+## Current Status
+
+```text
+[x] Click Analytics
+[x] Expiry Links
+[x] Custom Alias
+[x] Analytics API
+[x] Duplicate alias handling
+[x] Expired link handling
+```
+
 ---
 
 # Phase 4 — Authentication (Days 8–9)
