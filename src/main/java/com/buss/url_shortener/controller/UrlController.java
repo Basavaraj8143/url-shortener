@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import com.buss.url_shortener.service.UrlService;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.List;
 
 @RestController
@@ -23,24 +24,25 @@ public class UrlController {
 
     @PostMapping
     public ShortenResponse createShortUrl(
-            @Valid @RequestBody ShortenRequest request) {
+            @Valid @RequestBody ShortenRequest request,
+            Principal principal) {
 
-        return urlService.createShortUrl(request);
+        return urlService.createShortUrl(request, principal.getName());
     }
 
     @GetMapping
-    public List<UrlResponse> getAllUrls() {
-        return urlService.getAllUrls();
+    public List<UrlResponse> getAllUrls(Principal principal) {
+        return urlService.getAllUrls(principal.getName());
     }
 
     @GetMapping("/{id}/stats")
-    public UrlStatsResponse getUrlStats(@PathVariable Long id) {
-        return urlService.getUrlStats(id);
+    public UrlStatsResponse getUrlStats(@PathVariable Long id, Principal principal) {
+        return urlService.getUrlStats(id, principal.getName());
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUrl(@PathVariable Long id) {
-        urlService.deleteUrl(id);
+    public ResponseEntity<Void> deleteUrl(@PathVariable Long id, Principal principal) {
+        urlService.deleteUrl(id, principal.getName());
         return ResponseEntity.noContent().build();
     }
 }

@@ -284,6 +284,18 @@ Users can:
 
 Secure multi-user URL shortener.
 
+## Current Status
+
+```text
+[x] POST /register
+[x] POST /login
+[x] JWT token generation
+[x] BCrypt password hashing
+[x] Authenticated URL creation
+[x] Per-user URL listing
+[x] Owner-only delete and stats
+```
+
 ---
 
 # Phase 5 — Redis Caching (Days 10–11)

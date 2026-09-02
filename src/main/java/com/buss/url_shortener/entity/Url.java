@@ -27,4 +27,8 @@ public class Url {
     private Long clickCount;
 
     private LocalDateTime expiresAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private AppUser user;
 }
