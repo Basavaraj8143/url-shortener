@@ -336,6 +336,15 @@ Else
 
 Faster redirects and reduced database load.
 
+## Current Status
+
+```text
+[x] Redis cache-aside redirect lookup
+[x] Cache entries expire with short URLs
+[x] Redis fallback to MySQL when unavailable
+[x] Cache eviction when URLs are deleted
+```
+
 ---
 
 # Phase 6 — Docker + Deployment (Days 12–13)

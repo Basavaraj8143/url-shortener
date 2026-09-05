@@ -1,5 +1,13 @@
 package com.buss.url_shortener.service;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Service;
+
 import com.buss.url_shortener.dto.ShortenRequest;
 import com.buss.url_shortener.dto.ShortenResponse;
 import com.buss.url_shortener.dto.UrlResponse;
@@ -11,24 +19,25 @@ import com.buss.url_shortener.exception.UrlExpiredException;
 import com.buss.url_shortener.exception.UrlNotFoundException;
 import com.buss.url_shortener.repository.UrlRepository;
 import com.buss.url_shortener.repository.UserRepository;
-import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
 
 @Service
 public class UrlService {
 
     private static final int SHORT_CODE_LENGTH = 6;
     private static final int DEFAULT_EXPIRY_DAYS = 7;
+    private static final String REDIRECT_CACHE_PREFIX = "url:redirect:";
 
     private final UrlRepository urlRepository;
     private final UserRepository userRepository;
+    private final StringRedisTemplate redisTemplate;
 
-    public UrlService(UrlRepository urlRepository, UserRepository userRepository) {
+    public UrlService(
+            UrlRepository urlRepository,
+            UserRepository userRepository,
+            StringRedisTemplate redisTemplate) {
         this.urlRepository = urlRepository;
         this.userRepository = userRepository;
+        this.redisTemplate = redisTemplate;
     }
 
     public ShortenResponse createShortUrl(ShortenRequest request, String username) {
@@ -53,6 +62,21 @@ public class UrlService {
     }
 
     public String getLongUrl(String shortCode) {
+        String cachedLongUrl = getCachedLongUrl(shortCode);
+        if (cachedLongUrl != null) {
+            Url url = urlRepository.findByShortCode(shortCode)
+                    .orElseThrow(() -> new UrlNotFoundException("Short URL not found"));
+
+            if (isExpired(url)) {
+                evictCachedLongUrl(shortCode);
+                throw new UrlExpiredException("Short URL has expired");
+            }
+
+            url.setClickCount(getClickCount(url) + 1);
+            urlRepository.save(url);
+            return cachedLongUrl;
+        }
+
         Url url = urlRepository.findByShortCode(shortCode)
                 .orElseThrow(() -> new UrlNotFoundException("Short URL not found"));
 
@@ -62,6 +86,7 @@ public class UrlService {
 
         url.setClickCount(getClickCount(url) + 1);
         urlRepository.save(url);
+        cacheLongUrl(url);
 
         return url.getLongUrl();
     }
@@ -78,6 +103,7 @@ public class UrlService {
                 .orElseThrow(() -> new UrlNotFoundException("URL not found"));
 
         urlRepository.delete(url);
+        evictCachedLongUrl(url.getShortCode());
     }
 
     public UrlStatsResponse getUrlStats(Long id, String username) {
@@ -136,5 +162,42 @@ public class UrlService {
 
     private boolean isExpired(Url url) {
         return url.getExpiresAt() != null && LocalDateTime.now().isAfter(url.getExpiresAt());
+    }
+
+    private String getCachedLongUrl(String shortCode) {
+        try {
+            return redisTemplate.opsForValue().get(cacheKey(shortCode));
+        } catch (RuntimeException exception) {
+            return null;
+        }
+    }
+
+    private void cacheLongUrl(Url url) {
+        if (url.getExpiresAt() == null) {
+            return;
+        }
+
+        Duration timeToLive = Duration.between(LocalDateTime.now(), url.getExpiresAt());
+        if (timeToLive.isZero() || timeToLive.isNegative()) {
+            return;
+        }
+
+        try {
+            redisTemplate.opsForValue().set(cacheKey(url.getShortCode()), url.getLongUrl(), timeToLive);
+        } catch (RuntimeException ignored) {
+            // Redis is an optimization; database redirects remain available.
+        }
+    }
+
+    private void evictCachedLongUrl(String shortCode) {
+        try {
+            redisTemplate.delete(cacheKey(shortCode));
+        } catch (RuntimeException ignored) {
+            // Redis is an optimization; deletion is already complete in MySQL.
+        }
+    }
+
+    private String cacheKey(String shortCode) {
+        return REDIRECT_CACHE_PREFIX + shortCode;
     }
 }
