@@ -395,6 +395,18 @@ REDIS_HOST
 
 Live public URL Shortener.
 
+## Current Status
+
+```text
+[x] Dockerfile (multi-stage Maven → JRE Alpine)
+[x] docker-compose.yml (app + MySQL 8 + Redis 7)
+[x] Health checks for MySQL and Redis
+[x] Named volumes for persistent data
+[x] Environment variables externalized in application.properties
+[x] .env.example created for secrets template
+[x] .env added to .gitignore
+```
+
 ---
 
 # Phase 7 — Interview Preparation (Day 14)

@@ -1,0 +1,175 @@
+{
+  "info": {
+    "name": "URL Shortener API",
+    "description": "Complete API collection for the URL Shortener project.\n\n## Setup\n1. Import this collection into Postman\n2. Set the `baseUrl` variable to `http://localhost:8080`\n3. Run **Register** → **Login** (token is auto-saved) → use any other endpoint\n\n## Auth\nAll `/api/urls` endpoints require a Bearer token. The **Login** request automatically saves it to the `token` variable via a test script.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "JWT token — auto-filled after Login"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "User registration and login endpoints. No authentication required.",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/register", "host": ["{{baseUrl}}"], "path": ["register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"testuser\",\n  \"password\": \"Test@123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Creates a new user account.\n\n**Request Body:**\n- `username` (string, required) — unique username\n- `password` (string, required) — plain text (hashed with BCrypt on server)\n\n**Response:** `201 Created` with user details"
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.token) {",
+                  "    pm.collectionVariables.set('token', json.token);",
+                  "    console.log('Token saved:', json.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/login", "host": ["{{baseUrl}}"], "path": ["login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"testuser\",\n  \"password\": \"Test@123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Authenticates a user and returns a JWT token.\n\n**Response:** `200 OK`\n```json\n{ \"token\": \"eyJ...\" }\n```\n\n⚡ The test script automatically saves the token to `{{token}}` so all other requests work without manual copying."
+          }
+        }
+      ]
+    },
+    {
+      "name": "URLs",
+      "description": "URL management endpoints. All require `Authorization: Bearer {{token}}` header.",
+      "item": [
+        {
+          "name": "Create Short URL",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/urls", "host": ["{{baseUrl}}"], "path": ["api", "urls"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"longUrl\": \"https://leetcode.com/problems/two-sum\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Creates a new short URL with an auto-generated short code.\n\n**Request Body:**\n- `longUrl` (string, required) — the original long URL\n- `customAlias` (string, optional) — custom short code e.g. `myresume`\n- `expiresAt` (string, optional) — ISO 8601 expiry e.g. `2026-12-31T00:00:00`\n\n**Response:** `201 Created`\n```json\n{ \"shortCode\": \"abc123\" }\n```"
+          }
+        },
+        {
+          "name": "Create Short URL (with Custom Alias)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/urls", "host": ["{{baseUrl}}"], "path": ["api", "urls"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"longUrl\": \"https://github.com/yourusername\",\n  \"customAlias\": \"mygithub\",\n  \"expiresAt\": \"2027-01-01T00:00:00\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Creates a short URL with a custom alias and optional expiry date.\n\n**Note:** Returns `409 Conflict` if the alias is already taken."
+          }
+        },
+        {
+          "name": "Get All My URLs",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/urls", "host": ["{{baseUrl}}"], "path": ["api", "urls"] },
+            "description": "Returns all URLs created by the authenticated user.\n\n**Response:** `200 OK` — array of URL objects\n```json\n[\n  {\n    \"id\": 1,\n    \"longUrl\": \"https://leetcode.com\",\n    \"shortCode\": \"abc123\",\n    \"clickCount\": 42,\n    \"createdAt\": \"2026-09-01T10:00:00\",\n    \"expiresAt\": null\n  }\n]\n```"
+          }
+        },
+        {
+          "name": "Get URL Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/urls/1/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "urls", "1", "stats"]
+            },
+            "description": "Returns click analytics for a specific URL.\n\n**Path Variable:** `1` — replace with the actual URL id\n\n**Response:** `200 OK`\n```json\n{\n  \"clicks\": 120,\n  \"createdAt\": \"2026-09-01T10:00:00\",\n  \"expiresAt\": \"2027-01-01T00:00:00\"\n}\n```\n\n**Note:** Only the owner can view stats. Returns `403 Forbidden` otherwise."
+          }
+        },
+        {
+          "name": "Delete URL",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/urls/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "urls", "1"]
+            },
+            "description": "Deletes a URL by its id. Also evicts it from the Redis cache.\n\n**Path Variable:** `1` — replace with the actual URL id\n\n**Response:** `204 No Content`\n\n**Note:** Only the owner can delete their URL. Returns `403 Forbidden` otherwise."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Redirect",
+      "description": "Public redirect endpoint. No authentication required.",
+      "item": [
+        {
+          "name": "Redirect Short URL",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/abc123",
+              "host": ["{{baseUrl}}"],
+              "path": ["abc123"]
+            },
+            "description": "Resolves a short code and redirects to the original URL.\n\n**Path Variable:** `abc123` — replace with a real short code\n\n**Flow:**\n1. Check Redis cache → if hit, return immediately\n2. If miss, fetch from MySQL → store in Redis → return\n3. Increment click count\n\n**Response:** `302 Found` with `Location` header pointing to the long URL\n\n**Errors:**\n- `404 Not Found` — short code doesn't exist\n- `410 Gone` — URL has expired"
+          }
+        }
+      ]
+    }
+  ]
+}
