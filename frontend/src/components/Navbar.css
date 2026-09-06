@@ -1,0 +1,97 @@
+.navbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  background: rgba(250, 248, 243, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 2px solid var(--color-border);
+}
+
+.navbar-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 68px;
+}
+
+/* Logo */
+.navbar-brand {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  color: var(--color-accent);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.navbar-scissors {
+  font-size: 1.2rem;
+  animation: snip 2s ease-in-out infinite;
+  display: inline-block;
+}
+
+/* Nav pills */
+.navbar-links {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.nav-pill {
+  background: transparent;
+  border: 2px solid var(--color-border);
+  padding: 0.6rem 1.25rem;
+  border-radius: 50px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--color-ink);
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.nav-pill::before {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 0; height: 0;
+  border-radius: 50%;
+  background: var(--color-accent);
+  transition: width 0.4s ease, height 0.4s ease;
+  transform: translate(-50%, -50%);
+  z-index: 0;
+}
+
+.nav-pill:hover::before,
+.nav-pill.active::before { width: 300px; height: 300px; }
+
+.nav-pill:hover,
+.nav-pill.active {
+  color: white;
+  border-color: var(--color-accent);
+}
+
+.nav-pill > span { position: relative; z-index: 1; }
+
+.navbar-user {
+  font-size: 0.85rem;
+  color: var(--color-ink-light);
+  padding: 0.4rem 0.875rem;
+  background: var(--color-paper);
+  border-radius: 50px;
+  border: 2px solid var(--color-border);
+}
+
+@media (max-width: 600px) {
+  .navbar-inner { padding: 0 1rem; }
+  .nav-pill { padding: 0.5rem 1rem; font-size: 0.8rem; }
+}
