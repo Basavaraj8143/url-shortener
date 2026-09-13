@@ -1,7 +1,12 @@
 import axios from 'axios'
 
+// In production (Vercel), set VITE_API_BASE_URL to your Render backend URL:
+//   e.g. https://url-shortener-xyz.onrender.com
+// In development, leave it empty — Vite proxy handles it.
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
+
 const client = axios.create({
-  baseURL: '',   // Vite proxy handles routing
+  baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 })
 
