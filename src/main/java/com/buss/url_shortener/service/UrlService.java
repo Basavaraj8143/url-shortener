@@ -53,7 +53,10 @@ public class UrlService {
         url.setShortCode(shortCode);
         url.setCreatedAt(createdAt);
         url.setClickCount(0L);
-        url.setExpiresAt(createdAt.plusDays(DEFAULT_EXPIRY_DAYS));
+        int expiryDays = request.getExpiryDays() == null
+            ? DEFAULT_EXPIRY_DAYS
+            : request.getExpiryDays();
+        url.setExpiresAt(createdAt.plusDays(expiryDays));
         url.setUser(user);
 
         urlRepository.save(url);

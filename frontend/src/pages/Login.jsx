@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import client from '../api/client'
+import client, { getApiError } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
 export default function Login() {
@@ -23,7 +23,7 @@ export default function Login() {
       login(res.data.token, res.data.username)
       navigate('/dashboard')
     } catch (err) {
-      setError(err.response?.data?.message ?? 'Invalid credentials. Please try again.')
+      setError(getApiError(err, 'Invalid credentials. Please try again.'))
     } finally {
       setLoading(false)
     }

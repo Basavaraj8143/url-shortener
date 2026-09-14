@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import client from '../api/client'
+import client, { getShortUrl } from '../api/client'
 
 export default function UrlCard({ url, onDelete }) {
   const [copied, setCopied]     = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  const shortUrl  = `${window.location.origin}/${url.shortCode}`
+  const shortUrl  = getShortUrl(url.shortCode)
   const isExpired = url.expiresAt && new Date(url.expiresAt) < new Date()
 
   async function handleCopy() {

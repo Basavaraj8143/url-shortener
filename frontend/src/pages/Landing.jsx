@@ -1,17 +1,18 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import client from '../api/client'
+import { Link } from 'react-router-dom'
+import client, { getApiError, getShortUrl } from '../api/client'
+import { useAuth } from '../context/AuthContext'
 
 export default function Landing() {
   const [longUrl, setLongUrl]       = useState('')
   const [customAlias, setCustomAlias] = useState('')
-  const [expiryDays, setExpiryDays]  = useState('')
+   const [expiryDays, setExpiryDays] = useState('7')
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [result, setResult]   = useState(null)
   const [error, setError]     = useState('')
   const [loading, setLoading] = useState(false)
   const [copied, setCopied]   = useState(false)
-  const navigate = useNavigate()
+  const { user } = useAuth()
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -21,21 +22,22 @@ export default function Landing() {
 
     const payload = { longUrl }
     if (customAlias.trim()) payload.customAlias = customAlias.trim()
-    if (expiryDays)         payload.expiryDays  = parseInt(expiryDays)
-
+     if (expiryDays) payload.expiryDays = Number(expiryDays)
     try {
       const res = await client.post('/api/urls', payload)
-      setResult(`${window.location.origin}/${res.data.shortCode}`)
+       setResult({
+         url: getShortUrl(res.data.shortCode),
+         expiresAt: res.data.expiresAt,
+       })
     } catch (err) {
-      if (err.response?.status === 401) navigate('/login')
-      else setError(err.response?.data?.message ?? 'Failed to shorten URL. Try again.')
+      setError(getApiError(err, 'Failed to shorten URL. Try again.'))
     } finally {
       setLoading(false)
     }
   }
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(result)
+     await navigator.clipboard.writeText(result.url)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -53,11 +55,13 @@ export default function Landing() {
       <div className="container" style={{ paddingTop: 0 }}>
         {/* Shorten Card */}
         <div className="card">
-          <h2>✨ Shorten Your Link</h2>
+          {user ? (
+            <>
+              <h2>✨ Shorten Your Link</h2>
 
-          {error && <div className="alert alert-error">{error}</div>}
+              {error && <div className="alert alert-error">{error}</div>}
 
-          <form onSubmit={handleSubmit} id="landing-shorten-form">
+              <form onSubmit={handleSubmit} id="landing-shorten-form">
             <div className="form-group">
               <label className="form-label" htmlFor="landing-url">Original URL</label>
               <input
@@ -92,19 +96,19 @@ export default function Landing() {
                     onChange={e => setCustomAlias(e.target.value)}
                   />
                 </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="landing-expiry">Expires In (Days)</label>
-                  <input
-                    id="landing-expiry"
-                    type="number"
-                    className="form-input"
-                    placeholder="7"
-                    min="1"
-                    max="365"
-                    value={expiryDays}
-                    onChange={e => setExpiryDays(e.target.value)}
-                  />
-                </div>
+                     <div className="form-group">
+                       <label className="form-label" htmlFor="landing-expiry">Expires In (Days)</label>
+                       <input
+                         id="landing-expiry"
+                         type="number"
+                         min="1"
+                         max="365"
+                         required
+                         className="form-input"
+                         value={expiryDays}
+                         onChange={e => setExpiryDays(e.target.value)}
+                       />
+                     </div>
               </div>
             )}
 
@@ -119,20 +123,40 @@ export default function Landing() {
                 : <span>✂ Shorten URL</span>
               }
             </button>
-          </form>
+              </form>
 
-          {result && (
-            <div className="result-box">
-              <h3>✓ Your shortened URL is ready!</h3>
-              <div className="short-url-display">
-                <span className="short-url-text">{result}</span>
-                <button
-                  id="landing-copy-btn"
-                  onClick={handleCopy}
-                  className={`copy-btn ${copied ? 'copied' : ''}`}
-                >
-                  {copied ? '✓ Copied!' : 'Copy'}
-                </button>
+              {result && (
+                <div className="result-box">
+                  <h3>✓ Your shortened URL is ready!</h3>
+                  <div className="short-url-display">
+                    <span className="short-url-text">{result}</span>
+                    <button
+                      id="landing-copy-btn"
+                      onClick={handleCopy}
+                      className={`copy-btn ${copied ? 'copied' : ''}`}
+                    >
+                      {copied ? '✓ Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                   <p style={{ color: 'var(--color-ink-light)', marginTop: '0.75rem', fontSize: '0.9rem' }}>
+                     Expires {new Date(result.expiresAt).toLocaleString()}
+                   </p>
+                </div>
+              )}
+            </>
+          ) : (
+            <div style={{ textAlign: 'center' }}>
+              <h2>✨ Shorten Your Link</h2>
+              <p style={{ color: 'var(--color-ink-light)', marginBottom: '1.5rem' }}>
+                Sign in to create and manage your short URLs.
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <Link to="/login" className="btn">
+                  <span>Login to Shorten</span>
+                </Link>
+                <Link to="/register" className="btn btn-secondary">
+                  <span>Create Account</span>
+                </Link>
               </div>
             </div>
           )}

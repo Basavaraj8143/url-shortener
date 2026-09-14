@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import client from '../api/client'
+import client, { getShortUrl } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
 export default function Dashboard() {
@@ -38,7 +38,7 @@ export default function Dashboard() {
   }
 
   async function handleCopy(url, id) {
-    const short = `${window.location.origin}/${url.shortCode}`
+    const short = getShortUrl(url.shortCode)
     await navigator.clipboard.writeText(short)
     setCopiedId(id)
     setTimeout(() => setCopiedId(null), 2000)
@@ -94,7 +94,7 @@ export default function Dashboard() {
           {!loading && urls.length > 0 && (
             <div className="url-list">
               {urls.map(url => {
-                const shortUrl = `${window.location.origin}/${url.shortCode}`
+                const shortUrl = getShortUrl(url.shortCode)
                 const isExpired = url.expiresAt && new Date(url.expiresAt) < new Date()
                 return (
                   <div key={url.id} className="url-item" style={{ opacity: isExpired ? 0.65 : 1 }}>

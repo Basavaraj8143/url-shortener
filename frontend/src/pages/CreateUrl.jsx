@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import client from '../api/client'
+import { Link } from 'react-router-dom'
+import client, { getApiError, getShortUrl } from '../api/client'
 
 export default function CreateUrl() {
-  const navigate = useNavigate()
   const [longUrl, setLongUrl]         = useState('')
   const [customAlias, setCustomAlias] = useState('')
-  const [expiryDays, setExpiryDays]   = useState('')
+  const [expiryDays, setExpiryDays]   = useState('7')
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [result, setResult]   = useState(null)
   const [error, setError]     = useState('')
@@ -21,20 +20,22 @@ export default function CreateUrl() {
 
     const payload = { longUrl }
     if (customAlias.trim()) payload.customAlias = customAlias.trim()
-    if (expiryDays)         payload.expiryDays  = parseInt(expiryDays)
-
+    if (expiryDays) payload.expiryDays = Number(expiryDays)
     try {
       const res = await client.post('/api/urls', payload)
-      setResult(`${window.location.origin}/${res.data.shortCode}`)
+      setResult({
+        url: getShortUrl(res.data.shortCode),
+        expiresAt: res.data.expiresAt,
+      })
     } catch (err) {
-      setError(err.response?.data?.message ?? 'Failed to create short URL')
+      setError(getApiError(err, 'Failed to create short URL'))
     } finally {
       setLoading(false)
     }
   }
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(result)
+    await navigator.clipboard.writeText(result.url)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -59,7 +60,7 @@ export default function CreateUrl() {
               <div className="result-box">
                 <h3>✓ Your shortened URL is ready!</h3>
                 <div className="short-url-display">
-                  <span className="short-url-text">{result}</span>
+                  <span className="short-url-text">{result.url}</span>
                   <button
                     id="copy-result-btn"
                     onClick={handleCopy}
@@ -68,12 +69,15 @@ export default function CreateUrl() {
                     {copied ? '✓ Copied!' : 'Copy'}
                   </button>
                 </div>
+                <p style={{ color: 'var(--color-ink-light)', marginTop: '0.75rem', fontSize: '0.9rem' }}>
+                  Expires {new Date(result.expiresAt).toLocaleString()}
+                </p>
               </div>
 
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
                 <button
                   className="btn btn-secondary"
-                  onClick={() => { setResult(null); setLongUrl(''); setCustomAlias(''); setExpiryDays('') }}
+                  onClick={() => { setResult(null); setLongUrl(''); setCustomAlias(''); setExpiryDays('7') }}
                 >
                   <span>+ Create Another</span>
                 </button>
@@ -97,6 +101,19 @@ export default function CreateUrl() {
                   onChange={e => setLongUrl(e.target.value)}
                 />
               </div>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="cu-expiry">Expires In (Days)</label>
+                  <input
+                    id="cu-expiry"
+                    type="number"
+                    min="1"
+                    max="365"
+                    required
+                    className="form-input"
+                    value={expiryDays}
+                    onChange={e => setExpiryDays(e.target.value)}
+                  />
+                </div>
 
               <button
                 type="button"
@@ -117,19 +134,6 @@ export default function CreateUrl() {
                       placeholder="my-custom-link"
                       value={customAlias}
                       onChange={e => setCustomAlias(e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="cu-expiry">Expires In (Days)</label>
-                    <input
-                      id="cu-expiry"
-                      type="number"
-                      className="form-input"
-                      placeholder="7"
-                      min="1"
-                      max="365"
-                      value={expiryDays}
-                      onChange={e => setExpiryDays(e.target.value)}
                     />
                   </div>
                 </div>

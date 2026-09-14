@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import client from '../api/client'
+import client, { getApiError } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
 export default function Register() {
@@ -23,7 +23,7 @@ export default function Register() {
       login(res.data.token, res.data.username)
       navigate('/dashboard')
     } catch (err) {
-      setError(err.response?.data?.message ?? 'Registration failed. Username may already be taken.')
+      setError(getApiError(err, 'Registration failed. Username may already be taken.'))
     } finally {
       setLoading(false)
     }
