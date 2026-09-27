@@ -1,0 +1,125 @@
+.nf-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 24px 40px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle radial background glow */
+.nf-bg {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse 60% 50% at 50% 40%, rgba(217,119,6,0.07), transparent);
+  pointer-events: none;
+}
+
+/* Card */
+.nf-card {
+  background: white;
+  border: 2px solid var(--color-border);
+  border-radius: 16px;
+  padding: 3rem 2.5rem;
+  max-width: 520px;
+  width: 100%;
+  text-align: center;
+  box-shadow:
+    10px 10px 0 var(--color-border),
+    10px 10px 0 2px var(--color-ink);
+  position: relative;
+  animation: fadeIn 0.5s ease;
+}
+
+.nf-card::before {
+  content: '❋';
+  position: absolute;
+  top: 1rem; right: 1rem;
+  color: var(--color-accent);
+  opacity: 0.15;
+  font-size: 1.5rem;
+}
+
+/* SVG illustration */
+.nf-illustration {
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto 1.5rem;
+}
+
+.nf-illustration svg {
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(2px 4px 8px rgba(217,119,6,0.15));
+}
+
+/* 404 number */
+.nf-number {
+  font-family: var(--font-display);
+  font-size: clamp(4rem, 15vw, 7rem);
+  color: var(--color-accent);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  margin-bottom: 0.25rem;
+  /* Subtle text shadow for depth */
+  text-shadow: 4px 4px 0 rgba(217,119,6,0.15);
+}
+
+/* Title */
+.nf-title {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 400;
+  color: var(--color-ink);
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.01em;
+}
+
+/* Description */
+.nf-desc {
+  color: var(--color-ink-light);
+  font-style: italic;
+  line-height: 1.7;
+  margin-bottom: 1.75rem;
+  font-size: 0.95rem;
+}
+
+/* Countdown */
+.nf-countdown {
+  margin-bottom: 2rem;
+}
+
+.nf-countdown-bar {
+  height: 6px;
+  background: var(--color-border);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.nf-countdown-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-accent-dark), var(--color-accent));
+  border-radius: 99px;
+  transition: width 0.95s linear;
+}
+
+.nf-countdown-text {
+  font-size: 0.8rem;
+  color: var(--color-ink-light);
+}
+
+/* Actions */
+.nf-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+  .nf-card { padding: 2rem 1.5rem; }
+  .nf-actions { flex-direction: column; }
+  .nf-actions .btn { width: 100%; justify-content: center; }
+}
