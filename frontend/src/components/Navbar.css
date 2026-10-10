@@ -91,7 +91,8 @@
   border: 2px solid var(--color-border);
 }
 
-@media (max-width: 600px) {
-  .navbar-inner { padding: 0 1rem; }
+@media (max-width: 768px) { .navbar { position: sticky; } .navbar-inner { padding: 1rem; height: auto; flex-direction: column; gap: 0.75rem; text-align: center; } .navbar-links { width: 100%; justify-content: center; flex-wrap: wrap; } .nav-pill { padding: 0.5rem 0.85rem; font-size: 0.85rem; } } .navbar-links { width: 100%; justify-content: center; flex-wrap: wrap; } .nav-pill { padding: 0.5rem 0.85rem; font-size: 0.85rem; } }
   .nav-pill { padding: 0.5rem 1rem; font-size: 0.8rem; }
 }
+
+
