@@ -1,517 +1,308 @@
-# URL Shortener — Placement-Focused Java Project Roadmap
+::: {align="center"}
+# 🔗 URL Shortener
 
-## Goal
+**Turn long links into short, shareable URLs.**
 
-Build a production-ready URL Shortener using:
+A full-stack URL shortener built with Java, Spring Boot, React, MySQL,
+and Redis/Valkey.
 
-* Java
-* Spring Boot
-* MySQL
-* JPA
-* JWT
-* Redis
-* Docker
+![URL Shortener Architecture](./images/url-shortener-architecture.png)
 
-while learning industry backend practices.
+[Features](#-features) · [Architecture](#️-architecture) · [Tech
+Stack](#️-tech-stack) · [Run Locally](#-run-locally) ·
+[API](#-api-overview)
+:::
 
-**Estimated Duration:** 12–14 Days
+------------------------------------------------------------------------
 
----
+## ✨ Features
 
-# Phase 0 — Foundation Check (1 Day)
+-   **Short URLs** --- generate compact links from long URLs.
+-   **Custom aliases** --- choose a memorable code for a short link.
+-   **Authentication** --- user registration and login with JWT.
+-   **URL management** --- view and manage your links.
+-   **Click analytics** --- track link usage.
+-   **Expiration** --- configure links to expire.
+-   **Redis/Valkey caching** --- cache URL lookups to reduce repeated
+    database reads.
+-   **Rate limiting** --- limit repeated requests.
+-   **Validation and error handling** --- handle invalid input and API
+    errors consistently.
+-   **Containerization** --- Docker-based deployment workflow.
 
-Before starting, make sure you know:
+> **Note:** A custom domain has not been configured yet, so generated
+> short links use the deployed service URL.
 
-## Java
+## 🖼️ Screenshots
 
-* Classes & Objects
-* Constructors
-* Inheritance
-* Interfaces
-* Exception Handling
-* Collections (ArrayList, HashMap)
+Add screenshots from your running application to the `images/` directory
+and update these paths.
 
-## Database
+  Login                Dashboard
+  -------------------- ------------------------
+  `images/login.png`   `images/dashboard.png`
 
-* CREATE
-* INSERT
-* SELECT
-* UPDATE
+  Create a short URL        Analytics
+  ------------------------- ------------------------
+  `images/create-url.png`   `images/analytics.png`
 
-## Tools
+```{=html}
+<!-- When screenshots are added, replace the text above with:
+<div align="center">
+  <img src="./images/login.png" alt="Login page" width="48%" />
+  <img src="./images/dashboard.png" alt="Dashboard" width="48%" />
+  <img src="./images/create-url.png" alt="Create short URL" width="48%" />
+  <img src="./images/analytics.png" alt="Analytics" width="48%" />
+</div>
+-->
+```
+## 🛠️ Tech Stack
 
-* Git
-* Maven
+  Area                        Technology
+  --------------------------- ------------------------------------
+  Backend                     Java, Spring Boot
+  API                         REST
+  Persistence                 Spring Data JPA / Hibernate, MySQL
+  Authentication              Spring Security, JWT
+  Caching and rate limiting   Redis-compatible Valkey
+  Frontend                    React, Vite
+  HTTP client                 Axios
+  Deployment                  Docker, Render, Vercel, Aiven
 
-**Deliverable:** Small Java program using OOP + HashMap pushed to GitHub.
+## 🏗️ Architecture
 
----
-
-# Phase 1 — Spring Boot Setup (Day 1)
-
-Create project from Spring Initializr.
-
-## Dependencies
-
-* Spring Web
-* Spring Data JPA
-* MySQL Driver
-* Lombok
-* Validation
-
-## Project Structure
-
-```text
-src/main/java
-
-controller/
-service/
-repository/
-entity/
-dto/
-exception/
-config/
+``` mermaid
+flowchart LR
+    U[User / Browser] --> FE[React + Vite<br/>Vercel]
+    FE -->|HTTPS REST API + JWT| API[Spring Boot API<br/>Render]
+    API --> C[Controller Layer]
+    C --> S[Service Layer]
+    S --> R[Repository Layer<br/>Spring Data JPA]
+    R --> DB[(MySQL<br/>Aiven)]
+    S <--> Cache[(Redis / Valkey<br/>Render)]
 ```
 
-## Goal
+### Request flow
 
-* Spring Boot application starts successfully
-* Connected to MySQL database
-* Basic project structure created
+**Create a short URL**
 
----
+1.  The frontend sends the long URL and optional alias to the backend.
+2.  The controller validates and forwards the request to the service
+    layer.
+3.  The service creates the short-code mapping and saves it through the
+    repository.
+4.  The API returns the generated short URL to the frontend.
 
-# Phase 2 — Core URL Shortener API (Days 2–4)
+**Redirect**
 
-## Entity
+1.  A browser requests `/{shortCode}`.
+2.  The backend checks the cache for the mapping.
+3.  On a cache miss, the backend retrieves the mapping from MySQL and
+    can cache it.
+4.  The backend responds with an HTTP redirect to the original URL.
 
-### Url
+## 🚀 Run Locally
 
-```java
-id
-longUrl
-shortCode
-createdAt
+### Prerequisites
+
+-   Java 17 or the Java version configured by the project
+-   Maven (or the included Maven Wrapper)
+-   Node.js and npm
+-   MySQL
+-   Redis/Valkey
+-   Docker and Docker Compose (optional)
+
+### 1. Clone the repository
+
+``` bash
+git clone https://github.com/Basavaraj8143/url-shortener.git
+cd url-shortener
 ```
 
-## APIs
+### 2. Configure the backend
 
-### Create Short URL
+Create a local environment configuration based on the variables
+supported by your application. **Do not commit real passwords, JWT
+secrets, or production credentials.**
 
-```http
+``` env
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=url_shortener
+DB_USERNAME=root
+DB_PASSWORD=your_local_password
+
+JWT_SECRET=replace_with_a_long_random_secret
+
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+CORS_ALLOWED_ORIGINS=http://localhost:5173
+```
+
+Create the database in MySQL if it does not already exist:
+
+``` sql
+CREATE DATABASE url_shortener;
+```
+
+Start the backend from the directory containing the Maven project:
+
+``` bash
+./mvnw spring-boot:run
+```
+
+On Windows PowerShell:
+
+``` powershell
+.\mvnw.cmd spring-boot:run
+```
+
+The backend normally runs at `http://localhost:8080`, unless configured
+otherwise.
+
+### 3. Configure and start the frontend
+
+``` bash
+cd frontend
+npm install
+```
+
+Create `frontend/.env`:
+
+``` env
+VITE_API_BASE_URL=http://localhost:8080
+```
+
+Start the Vite development server:
+
+``` bash
+npm run dev
+```
+
+The frontend normally runs at `http://localhost:5173`.
+
+### 4. Docker Compose (optional)
+
+If the repository's Docker Compose configuration includes the required
+services, start them with:
+
+``` bash
+docker compose up --build
+```
+
+Stop the containers with:
+
+``` bash
+docker compose down
+```
+
+## 📡 API Overview
+
+The exact request and response formats are defined by the backend
+implementation. Common routes include:
+
+  Method     Endpoint                 Purpose
+  ---------- ------------------------ -------------------------------------------
+  `POST`     `/register`              Register a user
+  `POST`     `/login`                 Log in and obtain an authentication token
+  `POST`     `/api/urls`              Create a short URL
+  `GET`      `/api/urls`              List the authenticated user's URLs
+  `GET`      `/api/urls/{id}/stats`   Retrieve URL analytics
+  `DELETE`   `/api/urls/{id}`         Delete a URL
+  `GET`      `/{shortCode}`           Redirect to the original URL
+
+### Example: create a short URL
+
+``` http
 POST /api/urls
+Content-Type: application/json
+Authorization: Bearer <JWT>
 ```
 
-Request:
-
-```json
+``` json
 {
-  "longUrl":"https://leetcode.com"
+  "longUrl": "https://example.com/a/very/long/path",
+  "customAlias": "my-link",
+  "expiryDays": 30
 }
 ```
 
-Response:
+The `customAlias` and `expiryDays` fields are optional if supported by
+the selected request model. Use the API's actual response to retrieve
+the generated short URL.
 
-```json
-{
-  "shortCode":"abc123"
-}
+## 🔐 Security
+
+-   JWT-based authentication for protected endpoints.
+-   Password hashing through the configured Spring Security password
+    encoder.
+-   Per-user access control for URL management.
+-   CORS allowlist configured for permitted frontend origins.
+-   Server-side request validation and centralized exception handling.
+-   Secrets and database credentials supplied through environment
+    variables.
+
+## 🧠 What I Learned
+
+-   Structuring a Spring Boot application with **Controller → Service →
+    Repository** layers.
+-   Using **JPA/Hibernate** for relational persistence.
+-   Building and testing REST APIs.
+-   Implementing JWT authentication and authorization.
+-   Using Redis-compatible caching and rate limiting.
+-   Connecting a React frontend to a deployed backend.
+-   Configuring environment variables, CORS, Docker, and cloud services.
+
+## 🌐 Deployment
+
+-   **Frontend:** Vercel
+-   **Backend:** Render
+-   **MySQL:** Aiven
+-   **Cache:** Render Key Value (Valkey)
+
+Add the current live frontend and backend URLs here once you want them
+displayed publicly:
+
+-   **Live demo:** `YOUR_VERCEL_URL`
+-   **Backend:** `YOUR_RENDER_URL`
+
+## 📁 Project Structure
+
+The exact folders may differ slightly depending on the current
+repository layout.
+
+``` text
+url-shortener/
+├── src/
+│   └── main/
+│       └── java/
+│           └── .../
+│               ├── config/
+│               ├── controller/
+│               ├── service/
+│               ├── repository/
+│               ├── entity/
+│               ├── dto/
+│               ├── exception/
+│               └── security/
+├── frontend/
+├── Dockerfile
+├── docker-compose.yml
+├── pom.xml
+└── README.md
 ```
 
----
+## 👨‍💻 Author
 
-### Redirect
+**Basavaraj** · [GitHub](https://github.com/Basavaraj8143) ·
+[Portfolio](https://basavaraj.tech)
 
-```http
-GET /{shortCode}
-```
+If you find this project useful, feel free to ⭐ the repository or open
+an issue.
 
-Returns original URL.
+------------------------------------------------------------------------
 
----
-
-### Get All URLs
-
-```http
-GET /api/urls
-```
-
----
-
-### Delete URL
-
-```http
-DELETE /api/urls/{id}
-```
-
-## Concepts Learned
-
-* REST API
-* DTO
-* JPA Repository
-* Validation
-* Layered Architecture
-
-## Deliverable
-
-Working URL shortener with database persistence.
-
-## Current Status
-
-```text
-[x] POST /api/urls
-[x] GET /{shortCode}
-[x] GET /api/urls
-[x] DELETE /api/urls/{id}
-[x] Basic validation
-[x] Custom not-found handling
-```
-
----
-
-# Phase 3 — Production Features (Days 5–7)
-
-## Click Analytics
-
-Add field:
-
-```java
-clickCount
-```
-
-Increase count on every redirect.
-
----
-
-## Expiry Links
-
-Example:
-
-```text
-Expires after 7 days
-```
-
-Prevent access after expiry.
-
----
-
-## Custom Alias
-
-User can create:
-
-```text
-/myresume
-```
-
-instead of:
-
-```text
-/x8s9kd
-```
-
----
-
-## Analytics API
-
-```http
-GET /api/urls/{id}/stats
-```
-
-Response:
-
-```json
-{
-  "clicks":120,
-  "createdAt":"...",
-  "expiresAt":"..."
-}
-```
-
-## Deliverable
-
-Feature-rich URL Shortener.
-
-## Current Status
-
-```text
-[x] Click Analytics
-[x] Expiry Links
-[x] Custom Alias
-[x] Analytics API
-[x] Duplicate alias handling
-[x] Expired link handling
-```
-
----
-
-# Phase 4 — Authentication (Days 8–9)
-
-## Dependencies
-
-* Spring Security
-* JWT
-
-## APIs
-
-### Register
-
-```http
-POST /register
-```
-
-### Login
-
-```http
-POST /login
-```
-
-## Features
-
-Users can:
-
-* Create URLs
-* View their URLs
-* Delete only their URLs
-
-## Concepts Learned
-
-* Spring Security
-* JWT Authentication
-* BCrypt Password Hashing
-* Authorization
-
-## Deliverable
-
-Secure multi-user URL shortener.
-
-## Current Status
-
-```text
-[x] POST /register
-[x] POST /login
-[x] JWT token generation
-[x] BCrypt password hashing
-[x] Authenticated URL creation
-[x] Per-user URL listing
-[x] Owner-only delete and stats
-```
-
----
-
-# Phase 5 — Redis Caching (Days 10–11)
-
-## Problem
-
-Every redirect currently hits MySQL.
-
-## Solution
-
-Redis Cache.
-
-### Cache Flow
-
-```text
-Client
- ↓
-Redis
- ↓
-MySQL
-```
-
-### Logic
-
-```text
-Check Redis
-
-If found
-    Return
-
-Else
-    Fetch MySQL
-    Store in Redis
-    Return
-```
-
-## Deliverable
-
-Faster redirects and reduced database load.
-
-## Current Status
-
-```text
-[x] Redis cache-aside redirect lookup
-[x] Cache entries expire with short URLs
-[x] Redis fallback to MySQL when unavailable
-[x] Cache eviction when URLs are deleted
-```
-
----
-
-# Phase 6 — Docker + Deployment (Days 12–13)
-
-## Docker
-
-Create:
-
-```text
-Dockerfile
-docker-compose.yml
-```
-
-## Services
-
-```text
-Spring Boot
-MySQL
-Redis
-```
-
-Run:
-
-```bash
-docker compose up
-```
-
----
-
-## Deployment
-
-Deploy on:
-
-* Railway
-* Render
-
-Configure environment variables:
-
-```text
-DB_URL
-DB_USERNAME
-DB_PASSWORD
-JWT_SECRET
-REDIS_HOST
-```
-
-## Deliverable
-
-Live public URL Shortener.
-
-## Current Status
-
-```text
-[x] Dockerfile (multi-stage Maven → JRE Alpine)
-[x] docker-compose.yml (app + MySQL 8 + Redis 7)
-[x] Health checks for MySQL and Redis
-[x] Named volumes for persistent data
-[x] Environment variables externalized in application.properties
-[x] .env.example created for secrets template
-[x] .env added to .gitignore
-```
-
----
-
-# Phase 7 — Interview Preparation (Day 14)
-
-## Prepare Answers For
-
-### How are short codes generated?
-
-Version 1:
-
-```text
-UUID
-```
-
-Version 2:
-
-```text
-Base62 Encoding
-```
-
----
-
-### Why Redis?
-
-```text
-Reduce database load
-Improve redirect speed
-```
-
----
-
-### How would you scale to millions of URLs?
-
-Topics:
-
-* Caching
-* Load Balancer
-* Database Replication
-* Sharding
-* CDN
-
----
-
-### How do you prevent duplicate short codes?
-
-* Unique database constraint
-* Retry with a new generated code
-
----
-
-# Final Architecture
-
-```text
-Client
-   |
-   v
-Spring Boot API
-   |
-   +---- Redis Cache
-   |
-   +---- MySQL Database
-```
-
----
-
-# GitHub Milestones
-
-## Milestone 1
-
-```text
-Basic CRUD + Redirect
-```
-
-## Milestone 2
-
-```text
-Analytics + Expiry + Alias
-```
-
-## Milestone 3
-
-```text
-JWT Authentication
-```
-
-## Milestone 4
-
-```text
-Redis + Docker
-```
-
-## Milestone 5
-
-```text
-Live Deployment
-```
-
----
-
-# Resume Bullet
-
-Built a URL Shortener using Java, Spring Boot, MySQL, Redis, and Docker.
-
-Implemented custom aliases, click analytics, expiration-based URLs, and JWT authentication.
-
-Optimized redirect performance using Redis cache-aside strategy and deployed the application to a cloud platform.
-
-Designed a scalable architecture supporting efficient URL lookup and future horizontal scaling.
+::: {align="center"}
+**Built to learn by building. 🚀**
+:::
