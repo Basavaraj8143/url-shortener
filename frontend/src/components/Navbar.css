@@ -35,6 +35,39 @@
   display: inline-block;
 }
 
+/* Hamburger toggle - hidden on desktop */
+.navbar-toggle {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  z-index: 101;
+}
+
+.toggle-bar {
+  display: block;
+  width: 24px;
+  height: 2.5px;
+  background: var(--color-ink);
+  border-radius: 2px;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.navbar-toggle.open .toggle-bar:nth-child(1) {
+  transform: translateY(7.5px) rotate(45deg);
+}
+
+.navbar-toggle.open .toggle-bar:nth-child(2) {
+  opacity: 0;
+}
+
+.navbar-toggle.open .toggle-bar:nth-child(3) {
+  transform: translateY(-7.5px) rotate(-45deg);
+}
+
 /* Nav pills */
 .navbar-links {
   display: flex;
@@ -91,8 +124,67 @@
   border: 2px solid var(--color-border);
 }
 
-@media (max-width: 768px) { .navbar { position: sticky; } .navbar-inner { padding: 1rem; height: auto; flex-direction: column; gap: 0.75rem; text-align: center; } .navbar-links { width: 100%; justify-content: center; flex-wrap: wrap; } .nav-pill { padding: 0.5rem 0.85rem; font-size: 0.85rem; } } .navbar-links { width: 100%; justify-content: center; flex-wrap: wrap; } .nav-pill { padding: 0.5rem 0.85rem; font-size: 0.85rem; } }
-  .nav-pill { padding: 0.5rem 1rem; font-size: 0.8rem; }
+/* ─── Mobile ─── */
+@media (max-width: 768px) {
+  .navbar {
+    position: sticky;
+  }
+  .navbar-inner {
+    padding: 0.75rem 1rem;
+    height: auto;
+    flex-wrap: nowrap;
+    gap: 0;
+  }
+
+  /* Show hamburger */
+  .navbar-toggle {
+    display: flex;
+  }
+
+  /* Collapsible nav links */
+  .navbar-links {
+    display: none;
+    flex-direction: column;
+    width: 100%;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+    order: 3;
+    align-items: center;
+  }
+
+  .navbar-links.show {
+    display: flex;
+    animation: navSlideDown 0.25s ease-out;
+  }
+
+  .navbar-brand {
+    font-size: 1.6rem;
+  }
+
+  .nav-pill {
+    padding: 0.5rem 1rem;
+    font-size: 0.82rem;
+    width: 100%;
+    text-align: center;
+  }
+
+  .navbar-user {
+    font-size: 0.78rem;
+    padding: 0.35rem 0.75rem;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
-
+@keyframes navSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
