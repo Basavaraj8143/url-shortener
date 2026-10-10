@@ -188,7 +188,7 @@ export default function Landing() {
       <footer className="footer">
         <p>Handcrafted with ♥ using Java, Spring Boot, MySQL &amp; Redis</p>
         <p style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>
-          <a href="https://github.com" target="_blank" rel="noreferrer">View on GitHub</a>
+          <a href="https://github.com/Basavaraj8143/url-shortener" target="_blank" rel="noreferrer">View on GitHub</a>
         </p>
       </footer>
     </div>
