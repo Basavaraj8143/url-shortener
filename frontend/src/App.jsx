@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import Navbar          from './components/Navbar'
+import Footer          from './components/Footer'
 import ProtectedRoute  from './components/ProtectedRoute'
 import Landing   from './pages/Landing'
 import Login     from './pages/Login'
@@ -34,6 +35,7 @@ export default function App() {
           {/* Fallback */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <Footer />
       </BrowserRouter>
     </AuthProvider>
   )

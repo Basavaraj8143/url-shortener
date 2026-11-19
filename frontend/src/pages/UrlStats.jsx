@@ -62,13 +62,13 @@ export default function UrlStats() {
             </div>
 
             {/* Details */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div className="stats-details" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {[
                 { label: '📅 Created At', value: new Date(stats.createdAt).toLocaleString('en-IN', { dateStyle: 'long', timeStyle: 'short' }) },
                 { label: '⏰ Expires At', value: stats.expiresAt ? new Date(stats.expiresAt).toLocaleString('en-IN', { dateStyle: 'long' }) : 'Never (no expiry set)' },
                 { label: '🔗 Status',     value: isExpired ? '🔴 Expired' : '🟢 Active & Live' },
               ].map(({ label, value }) => (
-                <div key={label} style={{
+                <div className="stats-detail-row" key={label} style={{
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',

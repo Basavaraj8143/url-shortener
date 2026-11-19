@@ -3,6 +3,21 @@ import { Link } from 'react-router-dom'
 import client, { getShortUrl } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
+function Icon({ name, size = 16 }) {
+  const paths = {
+    link: <><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72" /><path d="M14 11a5 5 0 0 0-7.07 0l-3 3A5 5 0 0 0 11 21.07l1.72-1.72" /></>,
+    plus: <><path d="M12 5v14" /><path d="M5 12h14" /></>,
+    copy: <><rect x="8" y="8" width="13" height="13" rx="2" /><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" /></>,
+    chart: <><path d="M3 3v18h18" /><path d="m19 9-5 5-4-4-5 5" /></>,
+    trash: <><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="m19 6-1 14H6L5 6" /><path d="M10 11v5M14 11v5" /></>,
+    clicks: <><path d="m5 3 14 9-7 1-3 7L5 3Z" /></>,
+    calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 11h18" /></>,
+    clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+  }
+
+  return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>
+}
+
 export default function Dashboard() {
   const { user } = useAuth()
   const [urls, setUrls]         = useState([])
@@ -64,15 +79,15 @@ export default function Dashboard() {
     <div className="page animate-in" style={{ paddingBottom: '3rem' }}>
       <div className="container">
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', paddingTop: '1rem' }}>
+        <div className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', paddingTop: '1rem' }}>
           <div>
-            <h2 style={{ marginBottom: '0.25rem', color: 'var(--color-ink)' }}>📎 My Shortened URLs</h2>
+            <h2 className="dashboard-title" style={{ marginBottom: '0.25rem', color: 'var(--color-ink)' }}>My links</h2>
             <p style={{ color: 'var(--color-ink-light)', fontSize: '0.9rem' }}>
               Welcome back, <strong>{user?.username}</strong> · {urls.length} link{urls.length !== 1 ? 's' : ''}
             </p>
           </div>
           <Link to="/dashboard/new" id="create-url-btn" className="btn">
-            <span>✂ Create Short URL</span>
+            <span className="button-with-icon"><Icon name="plus" /> Create short link</span>
           </Link>
         </div>
 
@@ -85,7 +100,7 @@ export default function Dashboard() {
 
           {!loading && !error && urls.length === 0 && (
             <div className="empty-state">
-              <div className="empty-state-icon">🔗</div>
+              <div className="empty-state-icon"><Icon name="link" size={30} /></div>
               <p>No URLs yet. Create your first one!</p>
               <Link to="/dashboard/new" className="btn"><span>✂ Create Short URL</span></Link>
             </div>
@@ -93,45 +108,61 @@ export default function Dashboard() {
 
           {!loading && urls.length > 0 && (
             <div className="url-list">
-              {urls.map(url => {
+              {[...urls]
+                .sort((a, b) => {
+                  const aExpired = a.expiresAt && new Date(a.expiresAt) < new Date()
+                  const bExpired = b.expiresAt && new Date(b.expiresAt) < new Date()
+                  return Number(Boolean(aExpired)) - Number(Boolean(bExpired))
+                })
+                .map(url => {
                 const shortUrl = getShortUrl(url.shortCode)
                 const isExpired = url.expiresAt && new Date(url.expiresAt) < new Date()
                 return (
                   <div key={url.id} className="url-item" style={{ opacity: isExpired ? 0.65 : 1 }}>
                     <div className="url-item-header">
                       <div style={{ flex: 1 }}>
-                        <span
+                        <a
                           className="url-short-link"
-                          onClick={() => handleCopy(url, url.id)}
-                          title="Click to copy"
+                          href={shortUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Open short link"
                         >
+                          <Icon name="link" />{' '}
                           {shortUrl}
                           {copiedId === url.id && <span style={{ marginLeft: 8, fontSize: '0.8rem', color: 'var(--color-success)' }}>✓ Copied!</span>}
-                        </span>
+                        </a>
                         <div className="url-original">→ {url.longUrl}</div>
                       </div>
                       <div className="url-actions">
                         <button
                           className="btn btn-secondary btn-small"
+                          onClick={() => handleCopy(url, url.id)}
+                        >
+                          <Icon name="copy" />{' '}
+                          {copiedId === url.id ? 'Copied' : 'Copy'}
+                        </button>
+                        <button
+                          className="btn btn-secondary btn-small"
                           onClick={() => handleViewStats(url.id)}
                         >
-                          <span>📊 Stats</span>
+                          <span className="button-with-icon"><Icon name="chart" /> Stats</span>
                         </button>
                         <button
                           className="btn btn-danger btn-small"
                           onClick={() => handleDelete(url.id)}
                         >
-                          <span>🗑</span>
+                          <span className="button-with-icon"><Icon name="trash" /> Delete</span>
                         </button>
                       </div>
                     </div>
 
                     <div className="url-meta">
-                      <div className="url-meta-item"><span>👆</span><span>{url.clickCount ?? 0} clicks</span></div>
-                      <div className="url-meta-item"><span>📅</span><span>{new Date(url.createdAt).toLocaleDateString()}</span></div>
+                      <div className="url-meta-item"><Icon name="clicks" /><span>{url.clickCount ?? 0} clicks</span></div>
+                      <div className="url-meta-item"><Icon name="calendar" /><span>{new Date(url.createdAt).toLocaleDateString()}</span></div>
                       {url.expiresAt && (
                         <div className="url-meta-item">
-                          <span>⏰</span>
+                          <Icon name="clock" />
                           <span style={{ color: isExpired ? 'var(--color-error)' : 'inherit' }}>
                             {isExpired ? 'Expired ' : 'Expires '}{new Date(url.expiresAt).toLocaleDateString()}
                           </span>
@@ -148,7 +179,7 @@ export default function Dashboard() {
                           </div>
                         ) : stats && (
                           <>
-                            <h3>📊 Statistics</h3>
+                            <h3 className="button-with-icon"><Icon name="chart" /> Statistics</h3>
                             <div className="stats-row">
                               <div className="stats-item">
                                 <span className="stats-label">Total Clicks</span>
@@ -171,7 +202,7 @@ export default function Dashboard() {
                     )}
                   </div>
                 )
-              })}
+                })}
             </div>
           )}
         </div>

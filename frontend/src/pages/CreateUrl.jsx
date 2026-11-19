@@ -74,7 +74,7 @@ export default function CreateUrl() {
                 </p>
               </div>
 
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <div className="create-result-actions" style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
                 <button
                   className="btn btn-secondary"
                   onClick={() => { setResult(null); setLongUrl(''); setCustomAlias(''); setExpiryDays('7') }}
