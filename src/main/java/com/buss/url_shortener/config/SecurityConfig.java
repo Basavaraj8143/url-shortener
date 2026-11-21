@@ -7,22 +7,23 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
+import com.buss.url_shortener.repository.UserRepository;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final ClerkUserProvisioningFilter clerkUserProvisioningFilter;
     private final CorsConfigurationSource corsConfigurationSource;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
+    public SecurityConfig(UserRepository userRepository,
                           CorsConfigurationSource corsConfigurationSource) {
-        this.jwtAuthenticationFilter    = jwtAuthenticationFilter;
+        this.clerkUserProvisioningFilter = new ClerkUserProvisioningFilter(userRepository);
         this.corsConfigurationSource    = corsConfigurationSource;
     }
 
@@ -41,12 +42,13 @@ public class SecurityConfig {
                                 response.sendError(HttpStatus.FORBIDDEN.value()))
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST, "/register", "/login").permitAll()
+                        .requestMatchers("/register", "/login").denyAll()
                         .requestMatchers(HttpMethod.GET, "/{shortCode}").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {}))
+                .addFilterAfter(clerkUserProvisioningFilter, BearerTokenAuthenticationFilter.class);
 
         return http.build();
     }

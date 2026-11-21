@@ -12,14 +12,6 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
-      '/login': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
-      '/register': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
       // Catch-all: proxy short code paths to the backend
       '/': {
         target: 'http://localhost:8080',

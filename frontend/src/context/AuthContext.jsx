@@ -1,31 +1,34 @@
-import { createContext, useContext, useState, useCallback } from 'react'
+import { createContext, useCallback, useContext, useLayoutEffect, useMemo } from 'react'
+import { useAuth as useClerkAuth, useClerk, useUser } from '@clerk/react'
+import { setClerkTokenGetter } from '../api/client'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    const username = localStorage.getItem('username')
-    const token    = localStorage.getItem('token')
-    return username && token ? { username, token } : null
-  })
+  const { isLoaded: authLoaded, isSignedIn, getToken } = useClerkAuth()
+  const { user: clerkUser, isLoaded: userLoaded } = useUser()
+  const { signOut } = useClerk()
 
-  const login = useCallback((token, username) => {
-    localStorage.setItem('token', token)
-    localStorage.setItem('username', username)
-    setUser({ token, username })
-  }, [])
+  useLayoutEffect(() => {
+    setClerkTokenGetter(getToken)
+    return () => setClerkTokenGetter(null)
+  }, [getToken])
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('username')
-    setUser(null)
-  }, [])
+  const user = useMemo(() => {
+    if (!isSignedIn || !clerkUser) return null
+    const primaryEmail = clerkUser.primaryEmailAddress?.emailAddress
+    return {
+      id: clerkUser.id,
+      username: clerkUser.username || clerkUser.firstName || primaryEmail || clerkUser.id,
+      fullName: clerkUser.fullName,
+      imageUrl: clerkUser.imageUrl,
+    }
+  }, [clerkUser, isSignedIn])
 
-  return (
-    <AuthContext.Provider value={{ user, login, logout }}>
-      {children}
-    </AuthContext.Provider>
-  )
+  const logout = useCallback(() => signOut(), [signOut])
+  const value = useMemo(() => ({ user, logout, isLoaded: authLoaded && userLoaded }), [user, logout, authLoaded, userLoaded])
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

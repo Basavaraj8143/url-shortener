@@ -22,7 +22,10 @@ public class CorsConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         // Parse comma-separated origins from env var
-        List<String> origins = List.of(allowedOriginsRaw.split(","));
+        List<String> origins = java.util.Arrays.stream(allowedOriginsRaw.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .toList();
         config.setAllowedOrigins(origins);
 
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));

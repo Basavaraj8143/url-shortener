@@ -1,8 +1,6 @@
 import axios from 'axios'
 
-// In production (Vercel), set VITE_API_BASE_URL to your Render backend URL:
-//   e.g. https://url-shortener-xyz.onrender.com
-// In development, leave it empty — Vite proxy handles it.
+// In production, set VITE_API_BASE_URL to the public Render backend URL.
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
 const client = axios.create({
@@ -10,26 +8,17 @@ const client = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-// Attach JWT on every request
-client.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
+let clerkTokenGetter = null
+
+export function setClerkTokenGetter(getter) {
+  clerkTokenGetter = getter
+}
+
+client.interceptors.request.use(async config => {
+  const token = clerkTokenGetter ? await clerkTokenGetter() : null
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
-
-// On 401 → clear auth and redirect to login
-client.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    const isAuthRequest = ['/login', '/register'].includes(err.config?.url)
-    if (err.response?.status === 401 && !isAuthRequest) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('username')
-      window.location.href = '/login'
-    }
-    return Promise.reject(err)
-  }
-)
 
 export function getApiError(error, fallback) {
   return error.response?.data?.error
