@@ -1,327 +1,238 @@
-# URL Shortener: Deployment Plan (Vercel + AWS + Neon)
+# Minimal AWS Deployment Plan
 
-Goal: get the Java / Spring Boot URL shortener running as a **working live demo** at near-zero cost. Latency doesn't matter.
+This guide deploys the **Spring Boot API, Redis, and HTTPS proxy** on one AWS EC2 instance. Neon hosts PostgreSQL, and the React/Vite frontend stays on Vercel.
 
-> Costs and limits below are rough estimates. Free tiers change, so check AWS and Neon pricing before deploying.
-
----
-
-## 1. The Plan at a Glance
-
-| Piece | Choice | Why |
-|---|---|---|
-| Frontend | Vercel (Vite static site) | Serves the React UI without using EC2 memory |
-| API hosting | AWS EC2 (Ubuntu), Docker Compose | Runs the Spring Boot API, Redis, and Caddy |
-| Database | Neon Postgres (free plan) | Managed Postgres with pooled connections and scale-to-zero |
-| Cache | Redis in Docker on the same EC2 (capped at 64 MB) | Optional cache; the app falls back to Postgres if Redis fails |
-| HTTPS / reverse proxy | Caddy (auto Let's Encrypt) | Zero-config certificates |
-| Domain | Free DuckDNS subdomain | Free, scriptable IP updates |
-| After AWS credits end | Move to GCP e2-micro (always free, US region) | Same Docker Compose setup |
-
-### Why this combination
-
-- **AWS free plan:** new accounts get $100 in credits plus up to $100 more by completing activities. The plan lasts 6 months or until credits run out, whichever comes first. `t3.micro` is an eligible instance type.
-- **Neon instead of RDS:** Neon keeps the database managed and separate from EC2, with a free tier that suspends compute when idle. Expect a cold start after quiet periods and stay within the free compute quota.
-- **Everything else on one VM:** app + Redis + Caddy can run on one small VM, but 1 GB RAM is tight. A 2 GB instance is safer if the AWS credits cover it.
-
-### Architecture
-
-```
-Browser
-  |-- frontend URL --> Vercel (React/Vite)
-  |                       |
-  |                       +--> API URL (HTTPS, Caddy on EC2)
-  |                                      |
-  |                                      v
-  |                              Spring Boot API (:8080)
-  |                                +--> Redis (64 MB, optional cache)
-  |                                +--> Neon Postgres (pooled TLS connection)
+```text
+Browser -> Vercel frontend -> HTTPS -> Caddy on EC2 -> Spring Boot API -> Neon PostgreSQL
+                                                                 -> Redis (cache)
 ```
 
-### Rough monthly cost (24/7)
+The app already uses PostgreSQL and has a Java 17 Dockerfile. The Neon connection details visible in the supplied screenshot are filled into the configuration below; the database password is not visible and must be entered privately in `.env`. This plan does not require a MySQL-to-PostgreSQL migration, RDS, a load balancer, or a code change. The API and cache are on one VM, so this is appropriate for a demo or small personal app—not a high-availability production service.
 
-| Item | Approx. |
-|---|---|
-| EC2 t3.micro | ~$8 |
-| 20 GB gp3 disk | ~$2 |
-| Public IPv4 address | ~$3.60 |
-| Neon | $0 within free limits |
-| **Total** | **~$13-14/month** (~$80 over 6 months, inside the $100 credit) |
+> **Commands:** Commands marked **EC2** run in the Ubuntu shell on the server. Commands marked **Vercel** are entered in Vercel settings. Check current AWS pricing and free-tier/credit eligibility before creating resources; prices and offers change.
 
-If you stop the instance when not in use, you only pay for the disk (~$2/month) while it is stopped.
+## 1. Prepare AWS and DNS
 
----
+1. In AWS Billing, create a monthly budget alert before launching anything. Check your account's current credits and the estimated cost for your selected region and instance.
+2. Launch one Ubuntu 24.04 LTS EC2 instance. Choose at least **2 GB RAM** for Java, Redis, and Docker. Use a small gp3 disk (20 GB is a reasonable starting point).
+3. Create a security group with only these inbound rules:
+   - SSH (TCP 22) from **your current IP only**.
+   - HTTP (TCP 80) from anywhere.
+   - HTTPS (TCP 443) from anywhere.
+   - Do **not** add public rules for 5432 (PostgreSQL), 6379 (Redis), or 8080 (the app).
+4. Create a DNS name such as `api.example.com` or a DuckDNS hostname. Point its A record at the instance's public IPv4 address. If the address changes after stopping/starting EC2, update DNS; a static address may cost extra, so check current pricing.
+5. Wait for DNS to resolve to the EC2 public IP before starting Caddy. Caddy needs the hostname and reachable ports 80 and 443 to issue HTTPS certificates.
 
-## 2. Neon Setup
+## 2. Install Docker and get the project onto EC2
 
-### 2.1 Create the project
-1. Create a Neon project named `urlshortener`.
-2. Choose a region close to the AWS EC2 API.
-3. Save the database role password securely.
+From **Windows PowerShell**, connect using the key pair you downloaded. Replace the key path and address:
 
-### 2.2 Get the connection string
-1. Click **Connect** in Neon and select the production branch, database, and role.
-2. Enable **Connection pooling** and copy the pooled URL. Use the exact hostname with the `-pooler` suffix, role, database name, and password from the dashboard.
-3. Keep `sslmode=require` in the connection URL; Neon requires encrypted database connections.
+```powershell
+ssh -i .\your-key.pem ubuntu@<EC2-public-ip>
+```
 
-### 2.3 Test the connection
+Run the following on **EC2**:
+
 ```bash
-psql "postgresql://<role>:<password>@<pooled-host>:5432/<database>?sslmode=require"
-```
-Run the Spring app locally against Neon before deploying to AWS.
-
-### 2.4 Spring Boot configuration
-```properties
-spring.datasource.url=jdbc:postgresql://<pooled-host>:5432/<database>?sslmode=require
-spring.datasource.username=<role-from-Neon-Connect>
-spring.datasource.password=${DB_PASSWORD}
-spring.datasource.hikari.maximum-pool-size=5
-spring.datasource.hikari.minimum-idle=0
-spring.datasource.hikari.idle-timeout=240000
-spring.jpa.hibernate.ddl-auto=update
-```
-- The project already uses the PostgreSQL JDBC driver. Keep the Hikari pool small and allow idle connections to close so Neon can scale compute to zero when unused.
-- Use the direct connection for dump/restore or other admin operations that require session features.
-- Never commit the database password. Pass it through environment variables.
-
-### 2.5 Secure the connection
-- The browser talks to the Spring API, not directly to Neon. Store the database URL and password only in the backend environment.
-- Keep the Neon role password and Clerk backend settings in the EC2 environment file, with restrictive file permissions.
-
-### 2.6 Free plan limits
-Neon's current Free plan includes 1 GB of Postgres storage and 100 compute-hours per project per month. Compute suspends after inactivity and resumes on a new request, so the first database request after a quiet period can be slower. Monitor usage in the Neon Console.
-
-### 2.7 Existing data
-This demo plan starts with an empty Neon database. If existing MySQL users and links must be retained, migrate and verify them before switching production traffic.
-
----
-
-## 3. Code Changes: MySQL to Postgres
-
-1. **Dependency:** remove `mysql-connector-j`, add `org.postgresql:postgresql` (runtime scope).
-2. **Properties:** delete any explicit MySQL dialect (e.g. `MySQL8Dialect`) and the `com.mysql.cj.jdbc.Driver` setting.
-3. **Entities:**
-   - Keep `GenerationType.IDENTITY`.
-   - Rename tables that clash with reserved words (`user` -> `users`, `order` -> `orders`) using `@Table(name = "...")`.
-   - Remove MySQL-specific `columnDefinition` values (`LONGTEXT`, `TINYINT(1)`, `DATETIME`); use `TEXT`, `BOOLEAN`, `TIMESTAMP`, or let Hibernate choose.
-4. **Native queries:** `IFNULL` -> `COALESCE`, `DATE_FORMAT` -> `to_char`, remove backticks, `ON DUPLICATE KEY UPDATE` -> `ON CONFLICT ... DO UPDATE`. JPQL and Spring Data derived queries need no changes.
-5. **Case sensitivity:** MySQL string comparisons are case-insensitive by default; Postgres is case-sensitive. That is better for base62 short codes. Keep a unique index on the short code.
-6. **Duplicate-key handling:** if you parse MySQL error code `1062`, switch to SQLState `23505`. Catching `DataIntegrityViolationException` needs no change.
-7. **SQL scripts / Flyway:** `AUTO_INCREMENT` -> `BIGSERIAL` or `GENERATED BY DEFAULT AS IDENTITY`; remove `ENGINE=InnoDB` and backticks.
-8. **Tests / compose:** switch Testcontainers or test config to PostgreSQL; remove the MySQL service from compose.
-9. **Existing data:** for a demo, start fresh. To keep rows, export CSV and import, or use `pgloader`.
-
----
-
-## 4. AWS Setup
-
-### 4.1 Account and guardrails (do this first)
-1. Create an AWS account (a card is normally required at signup, even on the free plan).
-2. Check **Billing -> Credits** to confirm the $100 signup credit and note the end date (plan ends at 6 months or when credits run out; credits themselves expire after 12 months).
-3. Complete the console activities that earn the extra $100 if you want it.
-4. Create an **AWS Budget** (e.g. $5-10) with an email alert, and enable billing alerts.
-
-### 4.2 Launch the EC2 instance
-- **Region:** `ap-south-1` (Mumbai) or whichever is closest. Keep Neon in a nearby region if available.
-- **AMI:** Ubuntu 24.04 LTS.
-- **Instance type:** `t3.micro` (free-plan eligible, 1 GB RAM). `t3.small` (2 GB) is safer but about double the cost.
-- **Key pair:** create one and keep the `.pem` file safe.
-- **Storage:** 20 GB gp3.
-- **Network:** auto-assign public IP **on**. Do **not** attach an Elastic IP (it stays billable when stopped).
-- **Security group:**
-  - 22 (SSH): your IP only
-  - 80 (HTTP): anywhere
-  - 443 (HTTPS): anywhere
-
-### 4.3 Prepare the server
-```bash
-ssh -i your-key.pem ubuntu@<public-ip>
-
-# Docker
+sudo apt update
+sudo apt install -y ca-certificates curl git
 curl -fsSL https://get.docker.com | sudo sh
 sudo usermod -aG docker ubuntu
-# log out and back in so the group applies
-
-# Optional 1 GB swap (safety net for spikes)
-sudo fallocate -l 1G /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 ```
 
-### 4.4 Get the app onto the server
-Building with Maven/Gradle on a 1 GB box is slow and RAM-hungry. Better:
-- Build the jar or image on your laptop (or in GitHub Actions) and either push the image to Docker Hub / GHCR and `docker pull` it, or `scp` the jar to the server.
+Log out and reconnect so the Docker group change takes effect, then check:
 
-Example `Dockerfile` (adjust the Java version to match your project):
-```dockerfile
-FROM eclipse-temurin:17-jre
-COPY target/*.jar app.jar
-ENTRYPOINT ["java", "-jar", "/app.jar"]
-```
-
-### 4.5 Free domain (DuckDNS)
-1. Sign in at duckdns.org and create an API subdomain, e.g. `snip-api.duckdns.org`.
-2. Point it at the EC2 public IP.
-3. Because the IP changes after every stop/start, add an update script on the server:
 ```bash
-mkdir -p ~/duckdns
-cat > ~/duckdns/update.sh <<'EOF'
-#!/bin/bash
-curl -s "https://www.duckdns.org/update?domains=yourname&token=YOUR_TOKEN&ip="
-EOF
-chmod +x ~/duckdns/update.sh
-( crontab -l 2>/dev/null; echo "@reboot ~/duckdns/update.sh"; echo "*/10 * * * * ~/duckdns/update.sh" ) | crontab -
+docker --version
+docker compose version
 ```
-(An empty `ip=` makes DuckDNS use the caller's IP.)
 
-### 4.6 Docker Compose
-`docker-compose.yml`:
+Clone the repository (or use your own deployment method if it is private):
+
+```bash
+git clone https://github.com/Basavaraj8143/url-shortener.git
+cd url-shortener
+```
+
+## 3. Create a production Compose file
+
+Keep the repository's existing `docker-compose.yml` for local development. On EC2, create a separate file named `docker-compose.aws.yml` in the repository root and use this configuration. It does not publish the database, Redis, or app ports to the internet.
+
 ```yaml
 services:
-  app:
-    image: urlshortener:latest      # or your registry image
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://${NEON_HOST}:5432/${NEON_DATABASE}?sslmode=require
-      SPRING_DATASOURCE_USERNAME: ${NEON_USERNAME}
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
-      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: 5
-      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: 0
-      SPRING_DATASOURCE_HIKARI_IDLE_TIMEOUT: 240000
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-      CLERK_ISSUER: ${CLERK_ISSUER}
-      CLERK_JWKS_URL: ${CLERK_JWKS_URL}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
-      JAVA_TOOL_OPTIONS: -Xmx256m
-    depends_on:
-      - redis
-    restart: unless-stopped
-
   redis:
     image: redis:7-alpine
-    command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru
     restart: unless-stopped
+    command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DB_HOST: ${DB_HOST:?Set DB_HOST in .env}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:?Set DB_NAME in .env}
+      DB_USERNAME: ${DB_USERNAME:?Set DB_USERNAME in .env}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      DB_SSL_MODE: ${DB_SSL_MODE:-require}
+      DB_POOL_MAX: 5
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CLERK_ISSUER: ${CLERK_ISSUER:?Set CLERK_ISSUER in .env}
+      CLERK_JWKS_URL: ${CLERK_JWKS_URL:?Set CLERK_JWKS_URL in .env}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?Set CORS_ALLOWED_ORIGINS in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx512m"
+      SPRING_JPA_SHOW_SQL: "false"
 
   caddy:
     image: caddy:2
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
+      - "443:443/udp"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
-    restart: unless-stopped
+      - caddy_config:/config
+    depends_on:
+      - app
 
 volumes:
   caddy_data:
+  caddy_config:
 ```
 
-`Caddyfile` (serves the backend API and short-link redirects; Vercel serves the React UI):
-```
-snip-api.duckdns.org {
+Create `Caddyfile` beside the Compose file. Replace the hostname with the DNS name from step 1:
+
+```caddyfile
+api.example.com {
     reverse_proxy app:8080
 }
 ```
 
-`.env` (same folder, never committed):
-```
-NEON_HOST=<pooled-hostname-from-Neon-Connect>
-NEON_DATABASE=<database-from-Neon-Connect>
-NEON_USERNAME=<role-from-Neon-Connect>
-DB_PASSWORD=<Neon-role-password>
-CLERK_ISSUER=<Clerk-issuer-URL>
-CLERK_JWKS_URL=<Clerk-JWKS-URL>
-CORS_ALLOWED_ORIGINS=https://<your-project>.vercel.app
-```
+Because the frontend uses its configured API base URL to construct short links, generated links will use this API hostname too.
 
-Start it:
+## 4. Set secrets and service configuration
+
+On **EC2**, create `.env` in the repository root. Do not commit this file; `.env` is ignored by the repository's `.gitignore`. Generate random values on EC2:
+
 ```bash
-docker compose up -d
-docker compose logs -f app
+openssl rand -hex 32
 ```
 
-### 4.7 Deploy the frontend to Vercel
-1. Import the repository into Vercel and set the project root directory to `frontend`.
-2. Set `VITE_API_BASE_URL=https://snip-api.duckdns.org` and `VITE_CLERK_PUBLISHABLE_KEY=<Clerk-publishable-key>` in Vercel.
-3. Redeploy the frontend after adding the environment variables. Set `CORS_ALLOWED_ORIGINS` on EC2 to the exact Vercel origin (no trailing slash).
+Use the generated value for `JWT_SECRET`. Do **not** generate a new database password here: use the password for the Neon role shown in your Neon dashboard. Then create `.env`:
 
-### 4.8 Verify
-- Open the Vercel frontend, sign in through Clerk, and create a short link.
-- Click the short link and confirm the redirect.
-- Check rows appear in the Neon SQL Editor.
+```bash
+nano .env
+```
 
----
+Put these values in it, replacing every placeholder:
 
-## 5. Operating Routine
+```dotenv
+DB_HOST=ep-delicate-paper-beagcq2x-pooler.c-9.us-east-2.aws.neon.tech
+DB_PORT=5432
+DB_NAME=neondb
+DB_USERNAME=neondb_owner
+DB_PASSWORD=<Neon role password; enter privately on EC2>
+DB_SSL_MODE=require
+JWT_SECRET=<different-random-secret>
+CLERK_ISSUER=<issuer-url-from-your-Clerk-instance>
+CLERK_JWKS_URL=<JWKS-url-from-your-Clerk-instance>
+CORS_ALLOWED_ORIGINS=https://<your-vercel-frontend-origin>
+```
 
-### Stop when not using it
-- Stop the instance from the EC2 console. Instance and data-transfer charges stop; the 20 GB disk still costs about $2/month.
-- The auto-assigned public IP is released on stop. After the next start, the DuckDNS `@reboot` job updates the domain; if it hasn't, run `~/duckdns/update.sh` or update the IP in the DuckDNS dashboard.
-- While stopped, your short links are dead. For a resume link you want recruiters to click anytime, keep it running during your job-hunt periods.
+The Neon hostname, database, and role above come from the supplied screenshot. The screenshot masks the password; copy it from Neon into the EC2 `.env` file. Do not put the password in Java source, Compose YAML, `.env.example`, or Git. `DB_SSL_MODE=require` makes the app use TLS to connect to Neon. Use the exact Clerk issuer and JWKS URL from your Clerk configuration. `CORS_ALLOWED_ORIGINS` must be the frontend's origin only—scheme and hostname, with no path or trailing slash. If you have a Vercel preview URL, add it only if you intend to use it.
 
-### Keep running costs in check
-- Watch **Billing -> Credits** monthly.
-- Keep the budget alert active.
-- Don't add RDS, a NAT gateway, load balancers, or an Elastic IP.
+Restrict access to the secrets file and validate the Compose configuration without printing resolved secrets:
 
-### If something breaks
+```bash
+chmod 600 .env
+docker compose -f docker-compose.aws.yml --env-file .env config --quiet
+```
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| App container keeps restarting | Out of memory | Check `docker compose logs app`, confirm `-Xmx256m`, add swap |
-| Can't connect to DB | Incorrect pooled host/role/password, or Neon is waking from idle | Copy the pooled connection details from Neon and retry after the cold start |
-| HTTPS not issued | DNS not pointing at the instance yet, or ports 80/443 closed | Check DuckDNS IP and the security group |
-| Domain dead after restart | IP changed | Run the DuckDNS update script |
-| `prepared statement` errors | Client/session feature incompatible with Neon transaction pooling | Confirm JDBC uses the Neon pooled endpoint and review Neon PgBouncer limitations |
+The app connects to Neon over TLS using the pooled hostname shown in your screenshot. Redis remains private to the Compose network. Do not expose Redis or the app port through the EC2 security group.
 
----
+## 5. Start and check the backend
 
-## 6. After the AWS Free Plan Ends (month 6)
+Run on **EC2**:
 
-Move to the **GCP e2-micro** (always free):
-- One non-preemptible e2-micro in `us-west1`, `us-central1` or `us-east1` with a 30 GB standard disk.
-- A card is required for GCP billing. Set a budget alert immediately.
-- Don't pick a non-US region or an SSD disk; both bill.
-- Same Docker Compose setup, so the move is: new VM -> install Docker -> copy compose + Caddyfile + `.env` -> update DuckDNS.
+```bash
+docker compose -f docker-compose.aws.yml --env-file .env up -d --build
+docker compose -f docker-compose.aws.yml --env-file .env ps
+docker compose -f docker-compose.aws.yml --env-file .env logs --tail=100 app
+docker compose -f docker-compose.aws.yml --env-file .env logs --tail=100 caddy
+```
 
----
+The first build may take a few minutes. The included Dockerfile builds with Java 17. If the build runs out of memory, build the image on your computer or in CI and publish it to a container registry, then change the Compose `app` service from `build:` to that image.
 
-## 7. Step-by-Step Checklist
+Check the API through HTTPS from your computer:
 
-**Prep**
-- [ ] Migrate code to Postgres (section 3)
-- [ ] Run the app locally against Neon and confirm it works
-- [ ] Build the Docker image and test it locally with compose
+```text
+https://<your-api-hostname>
+```
 
-**Neon**
-- [ ] Create the project, save the role password
-- [ ] Copy the pooled connection details
-- [ ] Check the free compute and storage usage in the Neon Console
+The root path may redirect or return an application response depending on the route; the key checks are that DNS resolves, HTTPS loads without a certificate warning, and the app container stays running. If Caddy returns 502, inspect the app logs and check that it started successfully.
 
-**AWS**
-- [ ] Create the account, check credits, set the budget alert
-- [ ] Launch t3.micro Ubuntu, 20 GB gp3, correct security group, no Elastic IP
-- [ ] Install Docker, add swap
-- [ ] Create the DuckDNS domain and the update cron job
-- [ ] Set Clerk issuer, JWKS, and Vercel origin in the EC2 environment
+## 6. Deploy the frontend to Vercel
 
-**Deploy**
-- [ ] Copy compose, Caddyfile, `.env` and the image/jar to the server
-- [ ] `docker compose up -d`
-- [ ] Deploy the Vite frontend to Vercel with its API URL and Clerk publishable key
-- [ ] Test shorten + redirect over HTTPS
+In Vercel:
 
-**Polish for the resume**
-- [ ] Add the live URL and an architecture diagram to the GitHub README
-- [ ] Document the stack: React/Vite (Vercel), Spring Boot, Postgres (Neon), Redis, Docker Compose, Caddy, AWS EC2
-- [ ] Note what you'd change for production (RDS, load balancer, CI/CD)
+1. Import the repository and set the project root to `frontend`.
+2. Set `VITE_API_BASE_URL` to `https://<your-api-hostname>`.
+3. Set `VITE_CLERK_PUBLISHABLE_KEY` to the publishable key for the same Clerk instance configured on the backend.
+4. Redeploy after setting the variables.
 
----
+Do not put the database password, JWT secret, or Clerk secret key in Vercel frontend variables. The publishable key is intended for frontend use.
 
-## 8. Open Decisions
+## 7. Verify the complete app
 
-- **Redis:** keep it in Docker with the 64 MB limit; the current app falls back to Postgres if Redis is unavailable.
-- **t3.micro vs t3.small:** micro is enough for app + Redis + Caddy; choose small if you see memory pressure.
-- **Always-on vs stop-when-idle:** stopping saves credits but breaks the live link.
+From the deployed Vercel URL:
+
+- Sign in or sign up through Clerk.
+- Create a short URL and confirm the API request succeeds.
+- Open the generated short URL; it should use the API hostname and redirect to the original URL.
+- Refresh the page and confirm the saved link is still present.
+- On EC2, check `docker compose -f docker-compose.aws.yml --env-file .env logs --tail=100 app` if a request fails.
+
+The app uses Hibernate `ddl-auto=update` to create/update tables on startup, which is convenient for this demo. Neon persists the database independently of the EC2 instance. Before storing important production data, use an explicit schema migration strategy and take tested backups.
+
+## 8. Basic maintenance and recovery
+
+- Check your AWS budget and instance status regularly. EC2, disk, public IPv4, and data-transfer pricing depend on region and current AWS terms.
+- Back up PostgreSQL before making changes. Use Neon backups/restore features or `pg_dump` from a machine that can connect to Neon; do not rely on the EC2 disk as the only copy.
+- Example database backup (run on EC2; install the PostgreSQL client once with `sudo apt install -y postgresql-client`; writes `backup.sql` in the current directory and prompts for the Neon password):
+
+  ```bash
+  pg_dump \
+    --host=ep-delicate-paper-beagcq2x-pooler.c-9.us-east-2.aws.neon.tech \
+    --port=5432 --username=neondb_owner --dbname=neondb \
+    --sslmode=require --file=backup.sql
+  ```
+
+- To restart services after changing the Compose file:
+
+  ```bash
+  docker compose -f docker-compose.aws.yml --env-file .env up -d
+  ```
+
+- To update the app after pushing code:
+
+  ```bash
+  git pull
+  docker compose -f docker-compose.aws.yml --env-file .env up -d --build
+  ```
+
+### Common problems
+
+| Symptom | Check |
+|---|---|
+| Caddy cannot get a certificate | DNS points to the EC2 public IP; security group allows 80/443; hostname in `Caddyfile` matches DNS. |
+| Caddy shows 502 | App container is running and listening on 8080; inspect app logs. |
+| Sign-in or API calls fail in the browser | `CORS_ALLOWED_ORIGINS`, Clerk issuer/JWKS, and Vercel publishable key all match the same production configuration. |
+| App cannot connect to Neon | `.env` hostname, database, role, and password match Neon; `DB_SSL_MODE=require`; Neon compute is available. |
+| App restarts or EC2 becomes unresponsive | Check memory and Docker logs. Use at least 2 GB RAM; reduce other services or resize if needed. |
+| Site stops resolving after an EC2 stop/start | The public IP changed; update the DNS A record or use a static address after checking its cost. |
