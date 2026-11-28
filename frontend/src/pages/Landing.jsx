@@ -1,7 +1,10 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import client, { getApiError, getShortUrl } from '../api/client'
+import UrlForm from '../components/UrlForm'
 import { useAuth } from '../context/AuthContext'
+import useCreateUrl from '../hooks/useCreateUrl'
+import useCopyToClipboard from '../hooks/useCopyToClipboard'
+import usePageTitle from '../hooks/usePageTitle'
+import { formatDate } from '../utils/format'
 
 const steps = [
   { number: '01', title: 'Paste a URL', description: 'Start with the destination you want people to visit.' },
@@ -10,44 +13,15 @@ const steps = [
 ]
 
 export default function Landing() {
-  const [longUrl, setLongUrl] = useState('')
-  const [customAlias, setCustomAlias] = useState('')
-  const [expiryDays, setExpiryDays] = useState('7')
-  const [showAdvanced, setShowAdvanced] = useState(false)
-  const [result, setResult] = useState(null)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [copied, setCopied] = useState(false)
+  usePageTitle()
+  const form = useCreateUrl()
+  const { result, error } = form
+  const { copied, copyFailed, copy } = useCopyToClipboard()
   const { user } = useAuth()
+  const errorMessage = error || (copyFailed ? 'Could not copy the link. Select and copy it instead.' : '')
 
-  async function handleSubmit(event) {
-    event.preventDefault()
-    setError('')
-    setResult(null)
-    setLoading(true)
-
-    const payload = { longUrl }
-    if (customAlias.trim()) payload.customAlias = customAlias.trim()
-    if (expiryDays) payload.expiryDays = Number(expiryDays)
-
-    try {
-      const { data } = await client.post('/api/urls', payload)
-      setResult({ url: getShortUrl(data.shortCode), expiresAt: data.expiresAt })
-    } catch (err) {
-      setError(getApiError(err, 'We could not shorten that link. Please try again.'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(result.url)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 2000)
-    } catch {
-      setError('Could not copy the link. Select and copy it instead.')
-    }
+  function handleCopy() {
+    copy(result.url)
   }
 
   return (
@@ -73,32 +47,7 @@ export default function Landing() {
 
           {user ? (
             <>
-              <form onSubmit={handleSubmit} id="landing-shorten-form" aria-label="Create a short link">
-                <label className="form-label" htmlFor="landing-url">Your destination URL</label>
-                <div className="url-input-wrap">
-                  <span aria-hidden="true">↗</span>
-                  <input id="landing-url" type="url" required className="form-input" placeholder="https://example.com/your-page" value={longUrl} onChange={event => setLongUrl(event.target.value)} />
-                </div>
-                <button type="button" className="advanced-toggle" onClick={() => setShowAdvanced(value => !value)} aria-expanded={showAdvanced} aria-controls="landing-advanced-options">
-                  <span aria-hidden="true">{showAdvanced ? '−' : '+'}</span> {showAdvanced ? 'Hide options' : 'Customize your link'}
-                </button>
-                {showAdvanced && (
-                  <div className="landing-advanced" id="landing-advanced-options">
-                    <div className="form-group">
-                      <label className="form-label" htmlFor="landing-alias">Custom alias <span>(optional)</span></label>
-                      <input id="landing-alias" type="text" className="form-input" placeholder="my-link" value={customAlias} onChange={event => setCustomAlias(event.target.value)} />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label" htmlFor="landing-expiry">Expires in <span>(days)</span></label>
-                      <input id="landing-expiry" type="number" min="1" max="365" required className="form-input" value={expiryDays} onChange={event => setExpiryDays(event.target.value)} />
-                    </div>
-                  </div>
-                )}
-                {error && <div className="alert alert-error" role="alert">{error}</div>}
-                <button id="landing-shorten-btn" type="submit" disabled={loading} className="btn btn-full landing-submit">
-                  {loading ? <><span className="spinner" /> Creating your link</> : <>Shorten URL <span aria-hidden="true">→</span></>}
-                </button>
-              </form>
+              <UrlForm form={form} idPrefix="landing" errorMessage={errorMessage} />
               {result && (
                 <div className="result-box" role="status" aria-live="polite">
                   <span className="result-label">YOUR SHORT LINK IS READY</span>
@@ -106,7 +55,7 @@ export default function Landing() {
                     <a className="short-url-text" href={result.url} target="_blank" rel="noreferrer">{result.url}</a>
                     <button id="landing-copy-btn" type="button" onClick={handleCopy} className={`copy-btn ${copied ? 'copied' : ''}`}>{copied ? 'Copied ✓' : 'Copy link'}</button>
                   </div>
-                  {result.expiresAt && <p className="result-expiry">Available until {new Date(result.expiresAt).toLocaleDateString()}</p>}
+                  {result.expiresAt && <p className="result-expiry">Available until {formatDate(result.expiresAt)}</p>}
                 </div>
               )}
               <p className="shortener-footnote">Links you create are saved to your dashboard.</p>

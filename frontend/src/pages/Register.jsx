@@ -1,6 +1,13 @@
 import { SignUp } from '@clerk/react'
+import { Navigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import usePageTitle from '../hooks/usePageTitle'
 
 export default function Register() {
+  usePageTitle('Create account')
+  const { user } = useAuth()
+  if (user) return <Navigate to="/dashboard" replace />
+
   return (
     <main className="page auth-page animate-in">
       <div className="container auth-container">

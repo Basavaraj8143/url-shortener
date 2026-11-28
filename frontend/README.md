@@ -1,16 +1,47 @@
-# React + Vite
+# URL Shortener: Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React single-page app for the URL shortener. It talks to the Spring Boot backend in the repo root.
 
-Currently, two official plugins are available:
+**Stack:** React 19, Vite, React Router, Axios, [Clerk](https://clerk.com) for authentication, Oxlint.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Setup
 
-## React Compiler
+```bash
+npm install
+cp .env.example .env.local   # then fill in the values below
+npm run dev
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| Variable | Purpose |
+|----------|---------|
+| `VITE_CLERK_PUBLISHABLE_KEY` | Clerk Dashboard → API keys → Publishable key (safe to expose in the browser). The app shows a setup screen without it. |
+| `VITE_API_BASE_URL` | Backend URL, without a trailing slash. Leave empty in local dev; set it to the deployed backend (for example the Render URL) in production. |
 
-## Expanding the Oxlint configuration
+## Scripts
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+| Command | What it does |
+|---------|--------------|
+| `npm run dev` | Start the Vite dev server |
+| `npm run build` | Production build into `dist/` |
+| `npm run preview` | Serve the production build locally |
+| `npm run lint` | Run Oxlint |
+
+## Local development
+
+Run the backend on `http://localhost:8080`. The dev server proxies `/api` and any short-code path (anything that is not a known frontend route or a static file) to it, so short links work on the dev origin too. Custom aliases may only contain letters, numbers, `_` and `-`, which keeps them clear of the static-file check in `vite.config.js`.
+
+## Project structure
+
+```
+src/
+  api/         Axios client, error and short-URL helpers
+  components/  Navbar, Footer, UrlCard, UrlForm, Icon, ErrorBoundary, ProtectedRoute
+  context/     AuthContext (wraps Clerk)
+  hooks/       useCreateUrl, useCopyToClipboard, usePageTitle
+  pages/       Landing, Login, Register, Dashboard, CreateUrl, NotFound
+  utils/       Date helpers
+```
+
+## Deployment
+
+The frontend deploys to Vercel. `vercel.json` rewrites every path to `index.html` so client-side routes work on refresh. Set both environment variables in the Vercel project settings.

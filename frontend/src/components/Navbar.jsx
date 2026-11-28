@@ -47,9 +47,9 @@ export default function Navbar() {
     setAccountOpen(false)
   }
 
-  function handleLogout() {
-    logout()
+  async function handleLogout() {
     closeMenu()
+    await logout()
     navigate('/')
   }
 
@@ -95,6 +95,9 @@ export default function Navbar() {
             </>
           ) : (
             <>
+              {!isRegisterPage && location.pathname !== '/login' && (
+                <Link to="/login" className="nav-link" onClick={closeMenu}>Sign in</Link>
+              )}
               <Link to={isRegisterPage ? '/login' : '/register'} className="nav-cta" onClick={closeMenu}>{isRegisterPage ? 'Go to login' : 'Get started'} <span aria-hidden="true">→</span></Link>
             </>
           )}

@@ -1,54 +1,61 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import client from '../api/client'
+import client, { getApiError } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import Icon from '../components/Icon'
 import UrlCard from '../components/UrlCard'
-
-function isExpired(url) {
-  return url.expiresAt && new Date(url.expiresAt) < new Date()
-}
+import usePageTitle from '../hooks/usePageTitle'
+import { hasExpired } from '../utils/format'
 
 export default function Dashboard() {
+  usePageTitle('My links')
   const { user } = useAuth()
   const [urls, setUrls]       = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState('')
   const [alert, setAlert]     = useState(null)
 
+  const alertTimer = useRef(null)
+
   useEffect(() => {
+    let ignore = false
     client.get('/api/urls')
-      .then(res => setUrls(res.data))
-      .catch(() => setError('Failed to load URLs'))
-      .finally(() => setLoading(false))
+      .then(res => { if (!ignore) setUrls(res.data) })
+      .catch(err => { if (!ignore) setError(getApiError(err, 'Failed to load links')) })
+      .finally(() => { if (!ignore) setLoading(false) })
+    return () => {
+      ignore = true
+      clearTimeout(alertTimer.current)
+    }
   }, [])
 
   function showAlert(msg, type = 'success') {
+    clearTimeout(alertTimer.current)
     setAlert({ msg, type })
-    setTimeout(() => setAlert(null), 4000)
+    alertTimer.current = setTimeout(() => setAlert(null), 4000)
   }
 
   async function handleDelete(id) {
-    if (!window.confirm('Are you sure you want to delete this URL?')) return
+    if (!window.confirm('Delete this link? This cannot be undone.')) return
     try {
       await client.delete(`/api/urls/${id}`)
       setUrls(prev => prev.filter(u => u.id !== id))
-      showAlert('✓ URL deleted successfully')
+      showAlert('Link deleted')
     } catch {
-      showAlert('Failed to delete URL', 'error')
+      showAlert('Failed to delete link', 'error')
     }
   }
 
-  const sortedUrls = [...urls].sort((a, b) => Number(Boolean(isExpired(a))) - Number(Boolean(isExpired(b))))
+  const sortedUrls = [...urls].sort((a, b) => Number(hasExpired(a.expiresAt)) - Number(hasExpired(b.expiresAt)))
 
   return (
-    <div className="page animate-in" style={{ paddingBottom: '3rem' }}>
+    <main className="page dashboard-page animate-in">
       <div className="container">
         {/* Header */}
-        <div className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', paddingTop: '1rem' }}>
+        <div className="dashboard-header">
           <div>
-            <h2 className="dashboard-title" style={{ marginBottom: '0.25rem', color: 'var(--color-ink)' }}>My links</h2>
-            <p style={{ color: 'var(--color-ink-light)', fontSize: '0.9rem' }}>
+            <h2 className="dashboard-title">My links</h2>
+            <p className="dashboard-subtitle">
               Welcome back, <strong>{user?.username}</strong> · {urls.length} link{urls.length !== 1 ? 's' : ''}
             </p>
           </div>
@@ -57,18 +64,18 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {alert && <div className={`alert alert-${alert.type}`} style={{ marginTop: '1rem' }}>{alert.msg}</div>}
+        {alert && <div role="alert" className={`alert alert-${alert.type} dashboard-alert`}>{alert.msg}</div>}
 
         {/* URL List Card */}
         <div className="card card-wide">
           {loading && <div className="skeleton" />}
-          {error   && <div className="alert alert-error">{error}</div>}
+          {error   && <div role="alert" className="alert alert-error">{error}</div>}
 
           {!loading && !error && urls.length === 0 && (
             <div className="empty-state">
               <div className="empty-state-icon"><Icon name="link" size={30} /></div>
-              <p>No URLs yet. Create your first one!</p>
-              <Link to="/dashboard/new" className="btn"><span>✂ Create Short URL</span></Link>
+              <p>No links yet. Create your first one!</p>
+              <Link to="/dashboard/new" className="btn"><span className="button-with-icon"><Icon name="plus" /> Create short link</span></Link>
             </div>
           )}
 
@@ -81,6 +88,6 @@ export default function Dashboard() {
           )}
         </div>
       </div>
-    </div>
+    </main>
   )
 }
