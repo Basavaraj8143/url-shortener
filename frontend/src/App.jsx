@@ -8,7 +8,6 @@ import Login     from './pages/Login'
 import Register  from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import CreateUrl from './pages/CreateUrl'
-import UrlStats  from './pages/UrlStats'
 import NotFound  from './pages/NotFound'
 
 export default function App() {
@@ -27,9 +26,6 @@ export default function App() {
           } />
           <Route path="/dashboard/new" element={
             <ProtectedRoute><CreateUrl /></ProtectedRoute>
-          } />
-          <Route path="/dashboard/stats/:id" element={
-            <ProtectedRoute><UrlStats /></ProtectedRoute>
           } />
 
           {/* Fallback */}

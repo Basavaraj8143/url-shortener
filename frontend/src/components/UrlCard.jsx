@@ -1,12 +1,14 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import client, { getShortUrl } from '../api/client'
+import Icon from './Icon'
 
-export default function UrlCard({ url, onDelete }) {
-  const [copied, setCopied]     = useState(false)
-  const [deleting, setDeleting] = useState(false)
+export default function UrlCard({ url, onDelete, onNotify }) {
+  const [copied, setCopied] = useState(false)
+  const [statsOpen, setStatsOpen] = useState(false)
+  const [stats, setStats] = useState(null)
+  const [statsLoading, setStatsLoading] = useState(false)
 
-  const shortUrl  = getShortUrl(url.shortCode)
+  const shortUrl = getShortUrl(url.shortCode)
   const isExpired = url.expiresAt && new Date(url.expiresAt) < new Date()
 
   async function handleCopy() {
@@ -15,14 +17,22 @@ export default function UrlCard({ url, onDelete }) {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  async function handleDelete() {
-    if (!window.confirm('Delete this short URL?')) return
-    setDeleting(true)
+  async function handleToggleStats() {
+    if (statsOpen) {
+      setStatsOpen(false)
+      setStats(null)
+      return
+    }
+    setStatsOpen(true)
+    setStatsLoading(true)
     try {
-      await client.delete(`/api/urls/${url.id}`)
-      onDelete(url.id)
+      const res = await client.get(`/api/urls/${url.id}/stats`)
+      setStats(res.data)
     } catch {
-      setDeleting(false)
+      onNotify('Failed to load stats', 'error')
+      setStatsOpen(false)
+    } finally {
+      setStatsLoading(false)
     }
   }
 
@@ -30,33 +40,75 @@ export default function UrlCard({ url, onDelete }) {
     <div className="url-item" style={{ opacity: isExpired ? 0.65 : 1 }}>
       <div className="url-item-header">
         <div style={{ flex: 1 }}>
-          <span className="url-short-link" onClick={handleCopy} title="Click to copy">
+          <a
+            className="url-short-link"
+            href={shortUrl}
+            target="_blank"
+            rel="noreferrer"
+            title="Open short link"
+          >
+            <Icon name="link" />{' '}
             {shortUrl}
             {copied && <span style={{ marginLeft: 8, fontSize: '0.8rem', color: 'var(--color-success)' }}>✓ Copied!</span>}
-          </span>
+          </a>
           <div className="url-original">→ {url.longUrl}</div>
         </div>
         <div className="url-actions">
-          <Link to={`/dashboard/stats/${url.id}`} className="btn btn-secondary btn-small">
-            <span>📊 Stats</span>
-          </Link>
-          <button onClick={handleDelete} disabled={deleting} className="btn btn-danger btn-small">
-            {deleting ? <span className="spinner" style={{ borderTopColor: 'white' }} /> : <span>🗑</span>}
+          <button className="btn btn-secondary btn-small" onClick={handleCopy}>
+            <Icon name="copy" />{' '}
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+          <button className="btn btn-secondary btn-small" onClick={handleToggleStats}>
+            <span className="button-with-icon"><Icon name="chart" /> Stats</span>
+          </button>
+          <button className="btn btn-danger btn-small" onClick={() => onDelete(url.id)}>
+            <span className="button-with-icon"><Icon name="trash" /> Delete</span>
           </button>
         </div>
       </div>
+
       <div className="url-meta">
-        <div className="url-meta-item"><span>👆</span><span>{url.clickCount ?? 0} clicks</span></div>
-        <div className="url-meta-item"><span>📅</span><span>{new Date(url.createdAt).toLocaleDateString()}</span></div>
+        <div className="url-meta-item"><Icon name="clicks" /><span>{url.clickCount ?? 0} clicks</span></div>
+        <div className="url-meta-item"><Icon name="calendar" /><span>{new Date(url.createdAt).toLocaleDateString()}</span></div>
         {url.expiresAt && (
           <div className="url-meta-item">
-            <span>⏰</span>
+            <Icon name="clock" />
             <span style={{ color: isExpired ? 'var(--color-error)' : 'inherit' }}>
               {isExpired ? 'Expired ' : 'Expires '}{new Date(url.expiresAt).toLocaleDateString()}
             </span>
           </div>
         )}
       </div>
+
+      {statsOpen && (
+        <div className="stats-panel">
+          {statsLoading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '1rem' }}>
+              <span className="spinner spinner-ink" />
+            </div>
+          ) : stats && (
+            <>
+              <h3 className="button-with-icon"><Icon name="chart" /> Statistics</h3>
+              <div className="stats-row">
+                <div className="stats-item">
+                  <span className="stats-label">Total Clicks</span>
+                  <span className="stats-click">{stats.clicks ?? 0}</span>
+                </div>
+                <div className="stats-item">
+                  <span className="stats-label">Created</span>
+                  <span className="stats-value">{new Date(stats.createdAt).toLocaleString()}</span>
+                </div>
+                <div className="stats-item">
+                  <span className="stats-label">Expires</span>
+                  <span className="stats-value">
+                    {stats.expiresAt ? new Date(stats.expiresAt).toLocaleString() : 'Never'}
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }
